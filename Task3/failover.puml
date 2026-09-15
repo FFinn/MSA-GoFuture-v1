@@ -9,7 +9,7 @@ AddElementTag("task3", $bgColor="#FDECEC", $fontColor="#B71C1C", $borderColor="#
 AddRelTag("task3", $textColor="#D32F2F", $lineColor="#D32F2F")
 
 Person(user, "Пользователь GoFuture", "Пассажир или водитель", $tags="task3")
-Person(sre, "SRE-инженер", "Подтверждает региональную аварию и перевод базы", $tags="task3")
+Person(sre, "SRE-инженер", "Подтверждает региональную аварию и перевод резервных баз", $tags="task3")
 
 Deployment_Node(edge, "Глобальный пограничный контур", "Google Cloud", "Единая точка входа", $tags="task3") {
     Container(waf, "Политика Cloud Armor", "WAF / DDoS", "Применяется к входящему трафику глобального балансировщика", $tags="task3")
@@ -17,45 +17,49 @@ Deployment_Node(edge, "Глобальный пограничный контур"
     Container(health, "Проверки готовности", "Health Checks", "Проверяют критический путь региона", $tags="task3")
 }
 
-Deployment_Node(sg, "Singapore — основной до аварии", "asia-southeast1", "Региональная площадка", $tags="task3") {
-    Container(sg_api, "Доменные сервисы Singapore", "Regional GKE", "Booking, Driver, Geography, Pricing, Payments и другие", $tags="task3")
-    ContainerDb(sg_db, "Основной PostgreSQL Singapore", "Cloud SQL PostgreSQL", "Владелец сегментов Singapore", $tags="task3")
-    ContainerQueue(sg_kafka, "Kafka Singapore", "Apache Kafka", "Локальные события", $tags="task3")
+Deployment_Node(sg, "Сингапур — основной для сегментов sg до аварии", "asia-southeast1", "Региональная площадка", $tags="task3") {
+    Container(sg_gateway, "Шлюз программного интерфейса — Сингапур", "HTTP/REST", "Региональный экземпляр шлюза из Task1 и Task2", $tags="task3")
+    Container(sg_api, "Доменные сервисы — Сингапур", "региональный GKE", "Booking, Driver, Geography, Pricing, Payments, Fraud, Notification и Analytics", $tags="task3")
+    ContainerDb(sg_db, "Доменные PostgreSQL — Сингапур", "Cloud SQL PostgreSQL", "Отдельная база каждого домена; владелец сегментов region_owner=sg", $tags="task3")
+    ContainerQueue(sg_kafka, "Apache Kafka — Сингапур", "Apache Kafka", "Локальные доменные события региона sg", $tags="task3")
 }
 
-Deployment_Node(jk, "Jakarta — парный регион", "asia-southeast2", "Принимает нагрузку Singapore при аварии", $tags="task3") {
-    Container(jk_api, "Доменные сервисы Jakarta", "Regional GKE", "Штатно обслуживают Jakarta; при аварии принимают и Singapore", $tags="task3")
-    ContainerDb(sg_dr_db, "Резерв PostgreSQL Singapore", "Cloud SQL cross-region replica", "До аварии только чтение; после подтверждения переводится в запись", $tags="task3")
-    ContainerQueue(jk_kafka, "Kafka Jakarta", "Apache Kafka", "Содержит зеркала критичных топиков Singapore", $tags="task3")
-    Container(redis_rebuild, "Восстанавливаемое состояние", "Redis / Elasticsearch", "Перестраивается после переключения", $tags="task3")
+Deployment_Node(jkt, "Джакарта — парный регион", "asia-southeast2", "Принимает сегменты sg при аварии Сингапура", $tags="task3") {
+    Container(jkt_gateway, "Шлюз программного интерфейса — Джакарта", "HTTP/REST", "Региональный экземпляр шлюза из Task1 и Task2", $tags="task3")
+    Container(jkt_api, "Доменные сервисы — Джакарта", "региональный GKE", "Штатно обслуживают jkt; при аварии принимают и сегменты sg", $tags="task3")
+    ContainerDb(sg_dr_db, "Резерв доменных PostgreSQL Сингапура", "Cloud SQL cross-region replicas", "Отдельные реплики доменных баз sg; до аварии только чтение", $tags="task3")
+    ContainerQueue(jkt_kafka, "Apache Kafka — Джакарта", "Apache Kafka", "Содержит зеркала критичных топиков региона sg", $tags="task3")
+    Container(redis_rebuild, "Восстанавливаемые оперативные хранилища", "Redis / Elasticsearch", "Redis доменов Driver, Pricing, Geography и индекс Geography перестраиваются после переключения", $tags="task3")
 }
 
-Deployment_Node(sa_pair, "Южная Америка — симметричная пара", "Google Cloud", "Тот же механизм применяется к паре São Paulo ↔ Santiago", $tags="task3") {
-    Container(sp, "São Paulo", "GKE southamerica-east1", "Активный регион", $tags="task3")
-    Container(sc, "Santiago", "GKE southamerica-west1", "Парный активный регион и резерв для сегментов São Paulo", $tags="task3")
+Deployment_Node(sa_pair, "Южная Америка — симметричная пара", "Google Cloud", "Тот же механизм применяется к паре Сан-Паулу ↔ Сантьяго", $tags="task3") {
+    Container(sao, "Сан-Паулу", "региональный GKE, southamerica-east1", "Активный регион sao", $tags="task3")
+    Container(scl, "Сантьяго", "региональный GKE, southamerica-west1", "Активный регион scl и резерв для сегментов sao", $tags="task3")
 }
 
 Rel(user, lb, "HTTPS", $tags="task3")
 Rel(waf, lb, "Применяет политику защиты к входящему трафику", $tags="task3")
-Rel(health, sg_api, "1. Проверяет регион", $tags="task3")
-Rel(health, jk_api, "Проверяет парный регион", $tags="task3")
-Rel(lb, sg_api, "Штатный маршрут до аварии", "HTTPS", $tags="task3")
-Rel(lb, jk_api, "2. После исключения Singapore направляет новый трафик в Jakarta", "HTTPS", $tags="task3")
+Rel(health, sg_gateway, "1. Проверяет критический путь региона", $tags="task3")
+Rel(health, jkt_gateway, "Проверяет парный регион", $tags="task3")
+Rel(lb, sg_gateway, "Штатный маршрут до аварии", "HTTPS", $tags="task3")
+Rel(lb, jkt_gateway, "2. После исключения Сингапура направляет новый трафик в Джакарту", "HTTPS", $tags="task3")
+Rel(sg_gateway, sg_api, "Передаёт клиентские запросы", "HTTP/REST", $tags="task3")
+Rel(jkt_gateway, jkt_api, "Передаёт клиентские запросы", "HTTP/REST", $tags="task3")
 
-Rel(sg_db, sg_dr_db, "3. До аварии: асинхронная репликация", $tags="task3")
-Rel(sg_kafka, jk_kafka, "4. До аварии: зеркалирование критичных топиков", "MirrorMaker 2", $tags="task3")
-Rel(sre, sg_dr_db, "5. После блокировки старого владельца переводит реплику в режим записи", $tags="task3")
-Rel(jk_api, sg_dr_db, "6. Продолжает операции сегментов Singapore", "SQL", $tags="task3")
-Rel(jk_api, jk_kafka, "7. Продолжает Saga и обработку критичных событий", $tags="task3")
-Rel(jk_api, redis_rebuild, "8. Прогревает кэш и перестраивает индекс", $tags="task3")
+Rel(sg_db, sg_dr_db, "3. До аварии: асинхронная репликация каждой доменной базы", $tags="task3")
+Rel(sg_kafka, jkt_kafka, "4. До аварии: зеркалирование критичных топиков", "MirrorMaker 2", $tags="task3")
+Rel(sre, sg_dr_db, "5. После блокировки старого владельца переводит резервные доменные базы в режим записи", $tags="task3")
+Rel(jkt_api, sg_dr_db, "6. Продолжает операции сегментов sg", "SQL", $tags="task3")
+Rel(jkt_api, jkt_kafka, "7. Продолжает Saga и обработку критичных событий", $tags="task3")
+Rel(jkt_api, redis_rebuild, "8. Прогревает оперативные хранилища и перестраивает индекс", $tags="task3")
 
-Rel(sp, sc, "Симметричное аварийное переключение в обе стороны", $tags="task3")
+Rel(sao, scl, "Симметричное аварийное переключение в обе стороны", $tags="task3")
 
 note right of sg #FDECEC
   Основные точки отказа региона:
-  - GKE и региональная сеть;
-  - основная PostgreSQL;
-  - локальный Kafka;
+  - региональный GKE и сеть;
+  - одна или несколько доменных PostgreSQL;
+  - локальный Apache Kafka;
   - зона доступности.
 
   Отказ одной зоны закрывается внутри региона.
@@ -63,11 +67,15 @@ note right of sg #FDECEC
   переключение в парный регион.
 end note
 
-note right of jk #FDECEC
+note right of jkt #FDECEC
   Важное правило:
-  резервная база не становится вторым владельцем записи,
-  пока старый регион не заблокирован для записи.
-  Это защита от расхождения двух основных экземпляров.
+  резервная доменная база не становится
+  вторым владельцем записи, пока старый
+  регион не заблокирован для записи.
+
+  Доменные границы сохраняются и при аварии:
+  Booking пишет только в Booking PostgreSQL,
+  Payments — только в Payments PostgreSQL и т. д.
 end note
 
 note bottom of edge #FDECEC
@@ -80,7 +88,7 @@ note bottom of edge #FDECEC
   - маршрутизация в парный здоровый регион.
 
   С подтверждением SRE:
-  - перевод резервной PostgreSQL в режим записи;
+  - перевод резервных доменных PostgreSQL в режим записи;
   - возврат региона после аварии.
 end note
 
