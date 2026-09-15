@@ -1,0 +1,85 @@
+@startuml GoFuture_Failover_Task3
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Deployment.puml
+
+LAYOUT_LEFT_RIGHT()
+
+title GoFuture — C4 Deployment: аварийное переключение между регионами
+
+AddElementTag("task3", $bgColor="#FDECEC", $fontColor="#B71C1C", $borderColor="#D32F2F")
+AddRelTag("task3", $textColor="#D32F2F", $lineColor="#D32F2F")
+
+Person(user, "Пользователь GoFuture", "Пассажир или водитель", $tags="task3")
+Person(sre, "SRE-инженер", "Подтверждает региональную аварию и перевод базы", $tags="task3")
+
+Deployment_Node(edge, "Глобальный пограничный контур", "Google Cloud", "Единая точка входа", $tags="task3") {
+    Container(waf, "Cloud Armor", "WAF / DDoS", "Фильтрация внешнего трафика", $tags="task3")
+    Container(lb, "Глобальный балансировщик", "External Application Load Balancer", "Исключает нездоровые регионы и направляет трафик в ближайший доступный", $tags="task3")
+    Container(health, "Проверки готовности", "Health Checks", "Проверяют критический путь региона", $tags="task3")
+}
+
+Deployment_Node(sg, "Singapore — основной до аварии", "asia-southeast1", "Региональная площадка", $tags="task3") {
+    Container(sg_api, "Доменные сервисы Singapore", "Regional GKE", "Booking, Driver, Geography, Pricing, Payments и другие", $tags="task3")
+    ContainerDb(sg_db, "Основной PostgreSQL Singapore", "Cloud SQL PostgreSQL", "Владелец сегментов Singapore", $tags="task3")
+    ContainerQueue(sg_kafka, "Kafka Singapore", "Apache Kafka", "Локальные события", $tags="task3")
+}
+
+Deployment_Node(jk, "Jakarta — парный регион", "asia-southeast2", "Принимает нагрузку Singapore при аварии", $tags="task3") {
+    Container(jk_api, "Доменные сервисы Jakarta", "Regional GKE", "Штатно обслуживают Jakarta; при аварии принимают и Singapore", $tags="task3")
+    ContainerDb(sg_dr_db, "Резерв PostgreSQL Singapore", "Cloud SQL cross-region replica", "До аварии только чтение; после подтверждения переводится в запись", $tags="task3")
+    ContainerQueue(jk_kafka, "Kafka Jakarta", "Apache Kafka", "Содержит зеркала критичных топиков Singapore", $tags="task3")
+    Container(redis_rebuild, "Восстанавливаемое состояние", "Redis / Elasticsearch", "Перестраивается после переключения", $tags="task3")
+}
+
+Deployment_Node(sa_pair, "Южная Америка — симметричная пара", "Google Cloud", "Тот же механизм применяется к паре São Paulo ↔ Santiago", $tags="task3") {
+    Container(sp, "São Paulo", "GKE southamerica-east1", "Активный регион", $tags="task3")
+    Container(sc, "Santiago", "GKE southamerica-west1", "Парный активный регион и резерв для сегментов São Paulo", $tags="task3")
+}
+
+Rel(user, waf, "HTTPS", $tags="task3")
+Rel(waf, lb, "Разрешённый трафик", $tags="task3")
+Rel(health, sg_api, "1. Проверяет регион", $tags="task3")
+Rel(health, jk_api, "Проверяет парный регион", $tags="task3")
+Rel(lb, sg_api, "Штатный маршрут до аварии", "HTTPS", $tags="task3")
+Rel(lb, jk_api, "2. После исключения Singapore направляет новый трафик в Jakarta", "HTTPS", $tags="task3")
+
+Rel(sg_db, sg_dr_db, "3. До аварии: асинхронная репликация", $tags="task3")
+Rel(sg_kafka, jk_kafka, "4. До аварии: зеркалирование критичных топиков", "MirrorMaker 2", $tags="task3")
+Rel(sre, sg_dr_db, "5. После блокировки старого владельца переводит реплику в режим записи", $tags="task3")
+Rel(jk_api, sg_dr_db, "6. Продолжает операции сегментов Singapore", "SQL", $tags="task3")
+Rel(jk_api, jk_kafka, "7. Продолжает Saga и обработку критичных событий", $tags="task3")
+Rel(jk_api, redis_rebuild, "8. Прогревает кэш и перестраивает индекс", $tags="task3")
+
+Rel(sp, sc, "Симметричное аварийное переключение в обе стороны", $tags="task3")
+
+note right of sg #FDECEC
+  Основные точки отказа региона:
+  - GKE и региональная сеть;
+  - основная PostgreSQL;
+  - локальный Kafka;
+  - зона доступности.
+
+  Отказ одной зоны закрывается внутри региона.
+  Полный региональный отказ запускает
+  переключение в парный регион.
+end note
+
+note right of jk #FDECEC
+  Важное правило:
+  резервная база не становится вторым владельцем записи,
+  пока старый регион не заблокирован для записи.
+  Это защита от расхождения двух основных экземпляров.
+end note
+
+note bottom of edge #FDECEC
+  Автоматически:
+  - проверки готовности;
+  - исключение региона из новой балансировки;
+  - маршрутизация в парный здоровый регион.
+
+  С подтверждением SRE:
+  - перевод резервной PostgreSQL в режим записи;
+  - возврат региона после аварии.
+end note
+
+SHOW_LEGEND()
+@enduml
