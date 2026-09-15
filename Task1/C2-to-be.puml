@@ -20,14 +20,14 @@ System_Boundary(gofuture, "GoFuture") {
     Container(api_gateway, "Шлюз программного интерфейса", "HTTP/REST", "Единая входная точка, маршрутизация и переключение между монолитом и сервисами")
 
     Boundary(target_domains, "Целевые доменные сервисы") {
-        Container(booking, "Сервис бронирования", "Django/Python", "Жизненный цикл поездки; принимает решение о назначении выбранного водителя")
-        Container(driver_service, "Сервис водителей", "Django/Python", "Профиль, рабочее состояние и решение о том, может ли водитель принимать заказы")
-        Container(pricing, "Сервис ценообразования", "Django/Python", "Тарифы и динамический расчёт цены")
-        Container(payments, "Сервис платежей", "Django/Python", "Платежи пассажиров, возвраты и выплаты водителям")
-        Container(notification, "Сервис уведомлений", "Django/Python + Celery", "Подготовка и доставка уведомлений")
-        Container(geography, "Сервис географии", "Django/Python", "Геопоиск, маршруты, зоны; находит и ранжирует подходящих водителей")
-        Container(analytics, "Сервис аналитики", "Python", "Приём и подготовка аналитических данных")
-        Container(fraud, "Сервис защиты от мошенничества", "Django/Python", "Оценка риска поездок и платежных операций")
+        Container(booking, "Booking — сервис бронирования", "Django/Python", "Жизненный цикл поездки; принимает решение о назначении выбранного водителя")
+        Container(driver_service, "Driver — сервис водителей", "Django/Python", "Профиль, рабочее состояние и решение о том, может ли водитель принимать заказы")
+        Container(pricing, "Pricing — сервис ценообразования", "Django/Python", "Тарифы и динамический расчёт цены")
+        Container(payments, "Payments — сервис платежей", "Django/Python", "Платежи пассажиров, возвраты и выплаты водителям")
+        Container(notification, "Notification — сервис уведомлений", "Django/Python + Celery", "Подготовка и доставка уведомлений")
+        Container(geography, "Geography — сервис географии", "Django/Python", "Геопоиск, маршруты, зоны; находит и ранжирует подходящих водителей")
+        Container(analytics, "Analytics — сервис аналитики", "Python", "Приём и подготовка аналитических данных")
+        Container(fraud, "Fraud — сервис защиты от мошенничества", "Django/Python", "Оценка риска поездок и платежных операций")
 
         ContainerDb(booking_db, "База Booking", "PostgreSQL", "Заказы, поездки и их состояния")
         ContainerDb(driver_db, "База Driver", "PostgreSQL", "Водители и их рабочее состояние")
