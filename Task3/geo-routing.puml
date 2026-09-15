@@ -2,7 +2,6 @@
 !include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Container.puml
 
 LAYOUT_LEFT_RIGHT()
-
 title GoFuture — географическая маршрутизация пользовательского трафика
 
 AddElementTag("task3", $bgColor="#FDECEC", $fontColor="#B71C1C", $borderColor="#D32F2F")
@@ -13,72 +12,73 @@ Person(sa_user, "Пользователь в Южной Америке", "Пас
 
 System_Boundary(global_edge, "Глобальный пограничный контур") {
     Container(dns, "Единое имя GoFuture", "Cloud DNS", "Разрешает имя глобального входа", $tags="task3")
-    Container(waf, "Политика Cloud Armor", "WAF + защита от DDoS", "Применяется на глобальном балансировщике до передачи запроса в регион", $tags="task3")
-    Container(lb, "Глобальный внешний балансировщик приложений", "Google Cloud Load Balancing", "Выбирает ближайший здоровый регион с достаточной ёмкостью", $tags="task3")
-    Container(health, "Региональные проверки готовности", "Health Checks", "Контролируют доступность критического пути региона", $tags="task3")
+    Container(waf, "Политика Cloud Armor", "WAF", "Применяется на глобальном балансировщике", $tags="task3")
+    Container(lb, "Глобальный внешний балансировщик приложений", "Google Cloud Load Balancing", "Для новой операции выбирает ближайший здоровый регион", $tags="task3")
+    Container(health, "Региональные проверки состояния", "Health Checks", "Контролируют доступность критического пути региона", $tags="task3")
+    ContainerDb(owner_registry, "Реестр активного владельца сегмента", "Cloud Spanner", "home_region → active_region, epoch и состояние", $tags="task3")
 }
 
 System_Boundary(sea, "Юго-Восточная Азия") {
     Container(sg, "Сингапур", "региональный GKE, asia-southeast1", "Внутренний идентификатор: sg", $tags="task3")
-    Container(sg_gateway, "Шлюз программного интерфейса — Сингапур", "HTTP/REST", "Региональный экземпляр шлюза из Task1 и Task2", $tags="task3")
+    Container(sg_gateway, "Шлюз программного интерфейса — Сингапур", "HTTP/REST", "Определяет сегмент сущности и текущего владельца", $tags="task3")
     Container(jkt, "Джакарта", "региональный GKE, asia-southeast2", "Внутренний идентификатор: jkt", $tags="task3")
-    Container(jkt_gateway, "Шлюз программного интерфейса — Джакарта", "HTTP/REST", "Региональный экземпляр шлюза из Task1 и Task2", $tags="task3")
+    Container(jkt_gateway, "Шлюз программного интерфейса — Джакарта", "HTTP/REST", "Определяет сегмент сущности и текущего владельца", $tags="task3")
 }
 
 System_Boundary(sa, "Южная Америка") {
     Container(sao, "Сан-Паулу", "региональный GKE, southamerica-east1", "Внутренний идентификатор: sao", $tags="task3")
-    Container(sao_gateway, "Шлюз программного интерфейса — Сан-Паулу", "HTTP/REST", "Региональный экземпляр шлюза из Task1 и Task2", $tags="task3")
+    Container(sao_gateway, "Шлюз программного интерфейса — Сан-Паулу", "HTTP/REST", "Определяет сегмент сущности и текущего владельца", $tags="task3")
     Container(scl, "Сантьяго", "региональный GKE, southamerica-west1", "Внутренний идентификатор: scl", $tags="task3")
-    Container(scl_gateway, "Шлюз программного интерфейса — Сантьяго", "HTTP/REST", "Региональный экземпляр шлюза из Task1 и Task2", $tags="task3")
+    Container(scl_gateway, "Шлюз программного интерфейса — Сантьяго", "HTTP/REST", "Определяет сегмент сущности и текущего владельца", $tags="task3")
 }
 
 Rel(sea_user, dns, "Обращается к единому имени", "DNS", $tags="task3")
 Rel(sa_user, dns, "Обращается к единому имени", "DNS", $tags="task3")
-Rel(dns, lb, "Возвращает глобальный адрес", "DNS/HTTPS", $tags="task3")
-Rel(waf, lb, "Применяет политику защиты к входящему трафику", $tags="task3")
+Rel(dns, lb, "Возвращает глобальный адрес", $tags="task3")
+Rel(waf, lb, "Применяет политику защиты", $tags="task3")
 Rel(health, lb, "Передаёт состояние регионов", $tags="task3")
 
-Rel(lb, sg, "Штатный маршрут для ближайших пользователей ЮВА", "HTTPS", $tags="task3")
-Rel(lb, jkt, "Штатный маршрут для ближайших пользователей ЮВА", "HTTPS", $tags="task3")
-Rel(lb, sao, "Штатный маршрут для ближайших пользователей Южной Америки", "HTTPS", $tags="task3")
-Rel(lb, scl, "Штатный маршрут для ближайших пользователей Южной Америки", "HTTPS", $tags="task3")
+Rel(lb, sg, "Новая операция: ближайший здоровый регион", $tags="task3")
+Rel(lb, jkt, "Новая операция: ближайший здоровый регион", $tags="task3")
+Rel(lb, sao, "Новая операция: ближайший здоровый регион", $tags="task3")
+Rel(lb, scl, "Новая операция: ближайший здоровый регион", $tags="task3")
 
-Rel(sg, sg_gateway, "Передаёт запрос в региональный шлюз", "HTTPS/REST", $tags="task3")
-Rel(jkt, jkt_gateway, "Передаёт запрос в региональный шлюз", "HTTPS/REST", $tags="task3")
-Rel(sao, sao_gateway, "Передаёт запрос в региональный шлюз", "HTTPS/REST", $tags="task3")
-Rel(scl, scl_gateway, "Передаёт запрос в региональный шлюз", "HTTPS/REST", $tags="task3")
+Rel(sg, sg_gateway, "Передаёт запрос", $tags="task3")
+Rel(jkt, jkt_gateway, "Передаёт запрос", $tags="task3")
+Rel(sao, sao_gateway, "Передаёт запрос", $tags="task3")
+Rel(scl, scl_gateway, "Передаёт запрос", $tags="task3")
 
-Rel(health, sg_gateway, "Проверяет готовность шлюза и критичных зависимостей", $tags="task3")
-Rel(health, jkt_gateway, "Проверяет готовность шлюза и критичных зависимостей", $tags="task3")
-Rel(health, sao_gateway, "Проверяет готовность шлюза и критичных зависимостей", $tags="task3")
-Rel(health, scl_gateway, "Проверяет готовность шлюза и критичных зависимостей", $tags="task3")
+Rel(sg_gateway, owner_registry, "Для существующей сущности читает active_region", $tags="task3")
+Rel(jkt_gateway, owner_registry, "Для существующей сущности читает active_region", $tags="task3")
+Rel(sao_gateway, owner_registry, "Для существующей сущности читает active_region", $tags="task3")
+Rel(scl_gateway, owner_registry, "Для существующей сущности читает active_region", $tags="task3")
 
-Rel(sg, jkt, "Парный регион при аварии", $tags="task3")
-Rel(sao, scl, "Парный регион при аварии", $tags="task3")
+Rel(health, sg_gateway, "Проверяет готовность", $tags="task3")
+Rel(health, jkt_gateway, "Проверяет готовность", $tags="task3")
+Rel(health, sao_gateway, "Проверяет готовность", $tags="task3")
+Rel(health, scl_gateway, "Проверяет готовность", $tags="task3")
+
+Rel(sg_gateway, jkt_gateway, "Передаёт запрос сегмента, если active_region=jkt", $tags="task3")
+Rel(jkt_gateway, sg_gateway, "Передаёт запрос сегмента, если active_region=sg", $tags="task3")
+Rel(sao_gateway, scl_gateway, "Передаёт запрос сегмента, если active_region=scl", $tags="task3")
+Rel(scl_gateway, sao_gateway, "Передаёт запрос сегмента, если active_region=sao", $tags="task3")
 
 note right of lb #FDECEC
-  Регион выбирается не только по расстоянию.
-  Условие маршрутизации:
-  1. регион здоров;
-  2. есть свободная ёмкость;
-  3. разрешено размещение данных;
-  4. среди допустимых выбирается ближайший.
-
-  Cloud Armor — политика защиты балансировщика,
-  а не отдельный сетевой промежуточный узел.
+  Ближайший регион выбирается только для новой операции.
+  После создания сущность получает home_region.
+  Для существующей поездки шлюз использует active_region
+  из реестра владения, а не повторный выбор по расстоянию.
 end note
 
 note bottom of sea #FDECEC
-  При отказе Сингапура трафик ЮВА уходит в Джакарту.
-  При отказе Джакарты — в Сингапур.
-  Межконтинентальный маршрут используется только
-  как крайняя аварийная мера и только если это
-  допускают правила размещения данных.
+  Штатно: sg обслуживает сегменты sg, jkt — сегменты jkt.
+  После аварии Сингапура реестр меняется на sg -> jkt
+  только после повышения резервных баз и проверки готовности.
 end note
 
 note bottom of sa #FDECEC
-  При отказе Сан-Паулу трафик идёт в Сантьяго.
-  При отказе Сантьяго — в Сан-Паулу.
+  Для Сан-Паулу и Сантьяго применяется тот же принцип:
+  sao <-> scl с сохранением home_region бизнес-сущности.
 end note
 
 SHOW_LEGEND()
