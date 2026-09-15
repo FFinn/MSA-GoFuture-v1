@@ -4,16 +4,16 @@
 LAYOUT_LEFT_RIGHT()
 title GoFuture — C2 многотенантной платформы для партнёров
 
-Person(partner_admin, "Администратор партнёра", "Управляет пользователями и настройками своего партнёра")
+Person(partner_admin, "Администратор партнёра", "Управляет пользователями и разрешёнными настройками своего партнёра")
 Person(partner_operator, "Операционный сотрудник партнёра", "Работает с поездками, водителями или финансами в рамках своей роли")
 Person(gofuture_operator, "Оператор GoFuture", "Создаёт заявку на подключение партнёра и контролирует процесс")
-Person(sre, "SRE-инженер", "Контролирует состояние партнёрских окружений")
+Person(sre, "SRE-инженер", "Контролирует состояние всех партнёрских окружений")
 
 System_Ext(partner_idp, "Корпоративный поставщик идентификации партнёра", "OIDC / SAML")
 
 System_Boundary(gofuture, "GoFuture") {
-    Container(partner_portal, "Портал партнёра", "Web", "Администрирование партнёра, пользователи, конфигурация и отчёты")
-    Container(api_gateway, "Шлюз программного интерфейса", "HTTP/REST", "Проверяет токен, определяет tenant_id и направляет запрос в партнёрскую ячейку")
+    Container(partner_portal, "Портал партнёра", "Web", "Управление пользователями, разрешённой конфигурацией и операционными данными партнёра")
+    Container(api_gateway, "Шлюз программного интерфейса", "HTTP/REST", "Проверяет токен, определяет tenant_id и направляет запрос в разрешённый контур")
 
     Boundary(control_plane, "Общий управляющий контур") {
         Container(iam, "Управление идентификацией и доступом", "Keycloak", "Отдельная область безопасности Keycloak (realm) на партнёра, роли, OIDC/SAML и единый вход")
@@ -21,33 +21,36 @@ System_Boundary(gofuture, "GoFuture") {
         Container(config_service, "Сервис конфигурации партнёров", "Django / PostgreSQL", "Флаги возможностей, интеграции, квоты, брендирование и версии конфигурации")
         Container(provisioning, "Сервис управления партнёрами", "Django / Python", "Ведёт состояние подключения и запускает идемпотентные шаги создания окружения")
         Container(audit, "Журнал аудита", "Защищённое хранилище", "Изменения ролей, конфигурации, секретов и аварийный доступ")
-        Container(automation, "Автоматизация инфраструктуры", "Jenkins + Terraform + Helm", "Создаёт пространства имён, квоты, сетевые политики и инфраструктурные ресурсы")
+        Container(automation, "Автоматизация инфраструктуры", "Jenkins + Terraform + Helm", "Создаёт ячейку в выбранном региональном GKE, квоты, сетевые политики и инфраструктурные ресурсы")
         Container(secret_manager, "Хранилище секретов", "Secret Manager", "Секреты партнёров и внешних интеграций")
     }
 
     Boundary(tenant_a, "Партнёрская ячейка tenant=bank-a") {
-        Container(a_services, "Доменные сервисы bank-a", "Booking / Driver / Geography / Pricing / Payments / Fraud / Notification / Analytics", "Отдельные экземпляры доменных сервисов из общих версий образов")
-        ContainerDb(a_dbs, "Доменные базы bank-a", "PostgreSQL", "Отдельные базы Booking, Driver, Geography, Pricing, Payments, Fraud и Notification")
-        ContainerDb(a_cache, "Оперативные хранилища bank-a", "Redis / Elasticsearch", "Изолированные оперативные данные и геопоисковый индекс")
+        Container(a_services, "Доменные сервисы bank-a", "Booking / Driver / Geography / Pricing / Payments / Fraud / Notification / Analytics", "Отдельные развёртывания доменных сервисов из общих версий образов")
+        ContainerDb(a_dbs, "Доменные базы bank-a", "PostgreSQL", "Отдельная база каждого операционного домена")
+        ContainerDb(a_cache, "Оперативные хранилища bank-a", "Redis / Elasticsearch", "Изолированные оперативные данные и геопоисковый индекс Geography")
         ContainerDb(a_analytics, "Аналитическое хранилище bank-a", "ClickHouse", "Отдельная логическая база и права доступа партнёра bank-a")
         ContainerQueue(a_kafka, "События bank-a", "Apache Kafka", "Топики gofuture.<region>.bank-a.<domain>.* и отдельные группы потребителей")
     }
 
     Boundary(tenant_b, "Партнёрская ячейка tenant=taxi-partner-17") {
-        Container(b_services, "Доменные сервисы taxi-partner-17", "Booking / Driver / Geography / Pricing / Payments / Fraud / Notification / Analytics", "Отдельные экземпляры доменных сервисов из общих версий образов")
-        ContainerDb(b_dbs, "Доменные базы taxi-partner-17", "PostgreSQL", "Отдельные базы доменов партнёра")
-        ContainerDb(b_cache, "Оперативные хранилища taxi-partner-17", "Redis / Elasticsearch", "Изолированные оперативные данные и индекс")
+        Container(b_services, "Доменные сервисы taxi-partner-17", "Booking / Driver / Geography / Pricing / Payments / Fraud / Notification / Analytics", "Отдельные развёртывания доменных сервисов из общих версий образов")
+        ContainerDb(b_dbs, "Доменные базы taxi-partner-17", "PostgreSQL", "Отдельная база каждого операционного домена")
+        ContainerDb(b_cache, "Оперативные хранилища taxi-partner-17", "Redis / Elasticsearch", "Изолированные оперативные данные и геопоисковый индекс Geography")
         ContainerDb(b_analytics, "Аналитическое хранилище taxi-partner-17", "ClickHouse", "Отдельная логическая база и права доступа партнёра")
         ContainerQueue(b_kafka, "События taxi-partner-17", "Apache Kafka", "Отдельное пространство топиков и групп потребителей")
     }
 
     Boundary(observability, "Наблюдаемость") {
         Container(prometheus, "Prometheus", "Метрики", "Метрики платформы и партнёров с ограниченной меткой tenant_id")
-        Container(grafana, "Grafana", "Визуализация", "Платформенные и партнёрские панели")
+        Container(grafana, "Grafana", "Визуализация", "Внутренние панели GoFuture для SRE и платформенной команды")
         Container(alertmanager, "Alertmanager", "Оповещения", "Маршрутизация оповещений по региону, сервису и партнёру")
         Container(loki, "Loki", "Журналы", "Структурированные журналы с tenant_id")
-        Container(otel, "OpenTelemetry Collector", "Трассировка", "Добавляет и передаёт атрибут tenant.id")
+        Container(otel, "OpenTelemetry Collector", "Трассировка", "Передаёт трассы с атрибутом tenant.id")
         Container(jaeger, "Jaeger", "Трассировка", "Просмотр распределённых трасс")
+        Container(kafka_exporter, "Kafka Exporter", "Экспорт метрик", "Отставание групп потребителей и состояние партнёрских топиков")
+        Container(postgres_exporter, "PostgreSQL Exporter", "Экспорт метрик", "Соединения и состояние доменных баз партнёров")
+        Container(kube_metrics, "Метрики Kubernetes", "kube-state-metrics", "Квоты, состояния развёртываний и использование ресурсов партнёрских пространств имён")
     }
 }
 
@@ -58,16 +61,18 @@ Rel(iam, partner_idp, "Федерация идентификации", "OIDC / S
 Rel(partner_portal, api_gateway, "Запросы с токеном", "HTTPS/REST")
 Rel(api_gateway, iam, "Проверяет подпись, издателя и роли токена", "OIDC/JWT")
 Rel(api_gateway, tenant_registry, "Получает состояние и маршрут tenant_id", "HTTPS/REST")
+Rel(api_gateway, config_service, "Разрешённые изменения конфигурации партнёра", "HTTPS/REST")
+Rel(api_gateway, iam, "Управление пользователями и ролями своего партнёра", "HTTPS/REST")
 Rel(api_gateway, a_services, "tenant_id=bank-a", "HTTPS/REST")
 Rel(api_gateway, b_services, "tenant_id=taxi-partner-17", "HTTPS/REST")
 
-Rel(a_services, a_dbs, "Читает и записывает только базы bank-a", "SQL")
-Rel(a_services, a_cache, "Использует только оперативные хранилища bank-a")
-Rel(a_services, a_analytics, "Пишет и читает аналитику только bank-a")
+Rel(a_services, a_dbs, "Каждый домен читает и записывает только свою базу", "SQL")
+Rel(a_services, a_cache, "Driver/Pricing/Geography используют только свои логические области")
+Rel(a_services, a_analytics, "Только Analytics работает с аналитическим хранилищем")
 Rel(a_services, a_kafka, "Публикует и потребляет только события bank-a")
-Rel(b_services, b_dbs, "Читает и записывает только базы taxi-partner-17", "SQL")
-Rel(b_services, b_cache, "Использует только оперативные хранилища taxi-partner-17")
-Rel(b_services, b_analytics, "Пишет и читает аналитику только taxi-partner-17")
+Rel(b_services, b_dbs, "Каждый домен читает и записывает только свою базу", "SQL")
+Rel(b_services, b_cache, "Driver/Pricing/Geography используют только свои логические области")
+Rel(b_services, b_analytics, "Только Analytics работает с аналитическим хранилищем")
 Rel(b_services, b_kafka, "Публикует и потребляет только события taxi-partner-17")
 
 Rel(a_services, config_service, "Получает конфигурацию bank-a")
@@ -78,8 +83,8 @@ Rel(b_services, secret_manager, "Получает только секреты ta
 Rel(gofuture_operator, provisioning, "Создаёт заявку партнёра")
 Rel(provisioning, tenant_registry, "Создаёт и меняет состояние партнёра")
 Rel(provisioning, iam, "Создаёт область безопасности, роли, клиентов и SSO")
-Rel(provisioning, automation, "Запускает создание инфраструктуры")
-Rel(automation, a_services, "Создаёт партнёрскую ячейку по шаблону")
+Rel(provisioning, automation, "Запускает создание инфраструктуры в разрешённом регионе")
+Rel(automation, a_services, "Создаёт отдельные развёртывания сервисов по шаблону")
 Rel(automation, a_dbs, "Создаёт отдельные доменные базы")
 Rel(automation, a_analytics, "Создаёт отдельную аналитическую базу")
 Rel(automation, a_kafka, "Создаёт топики, группы и ACL")
@@ -89,18 +94,28 @@ Rel(provisioning, audit, "Записывает административные 
 Rel(iam, audit, "Пишет события входа и изменения ролей")
 Rel(config_service, audit, "Пишет изменения конфигурации")
 
-Rel(prometheus, a_services, "Собирает метрики bank-a")
-Rel(prometheus, b_services, "Собирает метрики taxi-partner-17")
+Rel(kafka_exporter, a_kafka, "Читает метрики Kafka")
+Rel(kafka_exporter, b_kafka, "Читает метрики Kafka")
+Rel(postgres_exporter, a_dbs, "Читает метрики баз")
+Rel(postgres_exporter, b_dbs, "Читает метрики баз")
+Rel(kube_metrics, a_services, "Читает состояния и квоты пространства имён")
+Rel(kube_metrics, b_services, "Читает состояния и квоты пространства имён")
+Rel(prometheus, kafka_exporter, "Собирает метрики", "HTTP")
+Rel(prometheus, postgres_exporter, "Собирает метрики", "HTTP")
+Rel(prometheus, kube_metrics, "Собирает метрики", "HTTP")
+Rel(prometheus, a_services, "Собирает прикладные метрики bank-a")
+Rel(prometheus, b_services, "Собирает прикладные метрики taxi-partner-17")
 Rel(prometheus, provisioning, "Собирает метрики подключения партнёров")
+Rel(prometheus, iam, "Собирает метрики IAM/SSO")
 Rel(grafana, prometheus, "Запрашивает метрики", "PromQL")
-Rel(grafana, iam, "Проверяет пользователя и роль партнёра", "OIDC")
 Rel(prometheus, alertmanager, "Передаёт сработавшие правила")
 Rel(a_services, loki, "Журналы с tenant_id")
 Rel(b_services, loki, "Журналы с tenant_id")
+Rel(provisioning, loki, "Журналы процесса подключения")
+Rel(iam, loki, "Журналы IAM/SSO")
 Rel(a_services, otel, "Трассы с tenant.id")
 Rel(b_services, otel, "Трассы с tenant.id")
 Rel(otel, jaeger, "Передаёт трассы")
-Rel(partner_admin, grafana, "Просматривает только панели своего партнёра", "SSO")
 Rel(sre, grafana, "Контролирует все партнёрские ячейки")
 Rel(sre, alertmanager, "Получает системные оповещения")
 
@@ -111,19 +126,23 @@ note right of api_gateway
 end note
 
 note bottom of tenant_a
+  Для читаемости доменные сервисы и базы показаны укрупнённо.
+  Каждый домен сохраняет исключительное владение своей базой.
+  Прямой доступ к базе другого домена запрещён.
+  Analytics единственный работает с ClickHouse.
+end note
+
+note bottom of tenant_b
   Изоляция по шаблону:
   - отдельное пространство имён Kubernetes;
-  - отдельные экземпляры сервисов из общих образов;
+  - отдельные развёртывания сервисов из общих образов;
   - отдельные сервисные учётные записи;
   - отдельные доменные и аналитические базы;
   - отдельные секреты и пространство Kafka;
   - собственные квоты и сетевые политики.
-end note
 
-note bottom of tenant_b
-  Ячейка bank-a не имеет учётных данных,
-  сетевого доступа и Kafka ACL партнёра
-  taxi-partner-17, и наоборот.
+  Ячейки партнёров не имеют учётных данных,
+  сетевого доступа и Kafka ACL друг друга.
 end note
 
 SHOW_LEGEND()
