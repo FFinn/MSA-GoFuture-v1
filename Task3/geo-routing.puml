@@ -1,0 +1,73 @@
+@startuml GoFuture_Geo_Routing_Task3
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Container.puml
+
+LAYOUT_LEFT_RIGHT()
+
+title GoFuture — географическая маршрутизация пользовательского трафика
+
+AddElementTag("task3", $bgColor="#FDECEC", $fontColor="#B71C1C", $borderColor="#D32F2F")
+AddRelTag("task3", $textColor="#D32F2F", $lineColor="#D32F2F")
+
+Person(sea_user, "Пользователь в Юго-Восточной Азии", "Пассажир или водитель", $tags="task3")
+Person(sa_user, "Пользователь в Южной Америке", "Пассажир или водитель", $tags="task3")
+
+System_Boundary(global_edge, "Глобальный пограничный контур") {
+    Container(dns, "Единое имя GoFuture", "Cloud DNS", "Разрешает имя глобального входа", $tags="task3")
+    Container(waf, "Cloud Armor", "WAF + защита от DDoS", "Проверяет запрос до региональной инфраструктуры", $tags="task3")
+    Container(lb, "Глобальный внешний балансировщик приложений", "Google Cloud Load Balancing", "Выбирает ближайший здоровый регион с достаточной ёмкостью", $tags="task3")
+    Container(health, "Региональные проверки готовности", "Health Checks", "Контролируют доступность API и критичных зависимостей", $tags="task3")
+}
+
+System_Boundary(sea, "Юго-Восточная Азия") {
+    Container(sg, "Singapore", "GKE asia-southeast1", "Активный регион", $tags="task3")
+    Container(jk, "Jakarta", "GKE asia-southeast2", "Активный регион", $tags="task3")
+}
+
+System_Boundary(sa, "Южная Америка") {
+    Container(sp, "São Paulo", "GKE southamerica-east1", "Активный регион", $tags="task3")
+    Container(sc, "Santiago", "GKE southamerica-west1", "Активный регион", $tags="task3")
+}
+
+Rel(sea_user, dns, "Обращается к единому имени", "DNS", $tags="task3")
+Rel(sa_user, dns, "Обращается к единому имени", "DNS", $tags="task3")
+Rel(dns, waf, "Публичный HTTPS-трафик", $tags="task3")
+Rel(waf, lb, "Разрешённые запросы", "HTTPS", $tags="task3")
+Rel(health, lb, "Передаёт состояние регионов", $tags="task3")
+
+Rel(lb, sg, "Штатный маршрут для ближайших пользователей SEA", "HTTPS", $tags="task3")
+Rel(lb, jk, "Штатный маршрут для ближайших пользователей SEA", "HTTPS", $tags="task3")
+Rel(lb, sp, "Штатный маршрут для ближайших пользователей SA", "HTTPS", $tags="task3")
+Rel(lb, sc, "Штатный маршрут для ближайших пользователей SA", "HTTPS", $tags="task3")
+
+Rel(health, sg, "Проверяет готовность API, PostgreSQL и Kafka", $tags="task3")
+Rel(health, jk, "Проверяет готовность API, PostgreSQL и Kafka", $tags="task3")
+Rel(health, sp, "Проверяет готовность API, PostgreSQL и Kafka", $tags="task3")
+Rel(health, sc, "Проверяет готовность API, PostgreSQL и Kafka", $tags="task3")
+
+Rel(sg, jk, "Парный регион при аварии", $tags="task3")
+Rel(sp, sc, "Парный регион при аварии", $tags="task3")
+
+note right of lb #FDECEC
+  Регион выбирается не только по расстоянию.
+  Условие маршрутизации:
+  1. регион здоров;
+  2. есть свободная ёмкость;
+  3. разрешено размещение данных;
+  4. среди допустимых выбирается ближайший.
+end note
+
+note bottom of sea #FDECEC
+  При отказе Singapore трафик SEA уходит в Jakarta.
+  При отказе Jakarta — в Singapore.
+  Межконтинентальный маршрут используется только
+  как крайняя аварийная мера и только если это
+  допускают правила размещения данных.
+end note
+
+note bottom of sa #FDECEC
+  При отказе São Paulo трафик идёт в Santiago.
+  При отказе Santiago — в São Paulo.
+end note
+
+SHOW_LEGEND()
+@enduml
