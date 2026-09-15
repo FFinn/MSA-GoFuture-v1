@@ -1,87 +1,81 @@
 @startuml GoFuture_C3_Partner_Provisioning_Task4
 !include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Component.puml
-
 LAYOUT_LEFT_RIGHT()
 title GoFuture — C3 автоматического подключения нового партнёра
 
 Person(operator, "Оператор GoFuture", "Создаёт заявку и контролирует подключение партнёра")
+System_Ext(partner_idp, "Корпоративный поставщик идентификации партнёра", "OIDC / SAML")
 
-Container_Ext(tenant_registry, "Реестр партнёров", "Django / PostgreSQL", "tenant_id, состояние, регионы и юрисдикция")
+Container_Ext(tenant_registry, "Реестр партнёров", "Django / PostgreSQL", "tenant_id, состояние, разрешённые регионы, внутренний код региона и юрисдикция")
 Container_Ext(iam, "Keycloak", "IAM / SSO", "Область безопасности партнёра, роли, клиенты и федерация OIDC/SAML")
-Container_Ext(automation, "Автоматизация инфраструктуры", "Jenkins + Terraform + Helm", "Пространство имён, квоты, сетевые политики и сервисные учётные записи")
-Container_Ext(data_platform, "Администрирование хранилищ", "PostgreSQL / Redis / Elasticsearch / ClickHouse", "Создание изолированных операционных и аналитических хранилищ партнёра")
-Container_Ext(kafka_admin, "Администрирование Kafka", "Apache Kafka", "Топики, группы потребителей и ACL")
+Container_Ext(automation, "Автоматизация инфраструктуры", "Jenkins + Terraform + Helm", "Создание ячейки в выбранном региональном GKE-кластере")
+Container_Ext(data_platform, "Администрирование хранилищ", "PostgreSQL / Redis / Elasticsearch / ClickHouse", "Создание изолированных операционных и аналитических хранилищ")
+Container_Ext(kafka_admin, "Администрирование Kafka", "Apache Kafka", "Региональные партнёрские топики, группы потребителей и ACL")
 Container_Ext(config_service, "Сервис конфигурации партнёров", "Django / PostgreSQL", "Флаги возможностей, интеграции и квоты")
 Container_Ext(secret_manager, "Хранилище секретов", "Secret Manager", "Секреты партнёра")
-Container_Ext(observability, "Контур наблюдаемости", "Prometheus / Grafana / Alertmanager", "Панели, правила и метрики партнёра")
+Container_Ext(observability, "Контур наблюдаемости", "Prometheus / Grafana / Alertmanager / Loki / OpenTelemetry", "Метрики, журналы, трассы и правила партнёра")
 Container_Ext(audit, "Журнал аудита", "Защищённое хранилище", "История административных операций")
 
 Container_Boundary(provisioning_service, "Сервис управления партнёрами") {
     Component(api, "API подключения партнёра", "Django REST", "Принимает заявку и возвращает текущее состояние")
-    Component(validator, "Проверка заявки", "Python", "Проверяет tenant_id, регионы, юрисдикцию и обязательные параметры")
+    Component(validator, "Проверка заявки", "Python", "Проверяет tenant_id, разрешённый регион, юрисдикцию и обязательные параметры")
     Component(orchestrator, "Координатор процесса", "Python", "Выполняет шаги в заданном порядке и продолжает процесс после сбоя")
     ComponentDb(state_store, "Хранилище состояния процесса", "PostgreSQL", "Состояние партнёра, шаги и устойчивые ключи tenant_id:step_name")
     Component(iam_adapter, "Адаптер IAM", "Python", "Создаёт область безопасности Keycloak, роли, клиентов и федерацию SSO")
-    Component(infra_adapter, "Адаптер инфраструктуры", "Python", "Запускает Jenkins/Terraform/Helm")
+    Component(infra_adapter, "Адаптер инфраструктуры", "Python", "Запускает Jenkins/Terraform/Helm в выбранном региональном контуре")
     Component(data_adapter, "Адаптер хранилищ", "Python", "Создаёт доменные, оперативные и аналитические хранилища")
-    Component(kafka_adapter, "Адаптер Kafka", "Python", "Создаёт партнёрские топики, группы и ACL")
+    Component(kafka_adapter, "Адаптер Kafka", "Python", "Создаёт партнёрские топики, группы и ACL в выбранном регионе")
     Component(config_adapter, "Адаптер конфигурации", "Python", "Создаёт начальную конфигурацию и ссылки на секреты")
     Component(monitoring_adapter, "Адаптер наблюдаемости", "Python", "Создаёт панели, правила оповещений и фильтры")
-    Component(verifier, "Проверка готовности", "Python", "Проверяет вход, запись в базу, Kafka и получение метрик")
+    Component(verifier, "Проверка готовности", "Python", "Проверяет SSO, изоляцию хранилищ, Kafka и телеметрию")
 }
 
 Rel(operator, api, "1. Создаёт заявку", "HTTPS")
 Rel(api, validator, "2. Передаёт данные заявки")
-Rel(validator, tenant_registry, "3. Проверяет уникальность tenant_id и допустимый регион")
+Rel(validator, tenant_registry, "3. Проверяет уникальность tenant_id, юрисдикцию и допустимый регион")
 Rel(validator, orchestrator, "4. Запускает подтверждённую заявку")
 Rel(orchestrator, state_store, "Фиксирует состояние и результат каждого шага", "SQL")
-Rel(orchestrator, tenant_registry, "5. Создаёт партнёра со статусом PROVISIONING")
-
+Rel(orchestrator, tenant_registry, "5. Создаёт партнёра со статусом PROVISIONING и внутренним кодом региона")
 Rel(orchestrator, iam_adapter, "6. Подготавливает идентификацию")
-Rel(iam_adapter, iam, "Создаёт область безопасности, роли, клиентов и OIDC/SAML")
-
+Rel(iam_adapter, iam, "Создаёт область безопасности, роли и приложения-клиенты")
+Rel(iam, partner_idp, "Настраивает федерацию при её использовании", "OIDC / SAML")
 Rel(orchestrator, infra_adapter, "7. Подготавливает вычислительный контур")
-Rel(infra_adapter, automation, "Создаёт пространство имён, квоты и сетевые политики")
-
+Rel(infra_adapter, automation, "Создаёт пространство имён и развёртывания сервисов в sg/jkt/sao/scl")
 Rel(orchestrator, data_adapter, "8. Подготавливает хранилища")
-Rel(data_adapter, data_platform, "Создаёт отдельные доменные, оперативные и аналитические хранилища")
-
+Rel(data_adapter, data_platform, "Создаёт доменные, оперативные и аналитические хранилища")
 Rel(orchestrator, kafka_adapter, "9. Подготавливает событийный контур")
-Rel(kafka_adapter, kafka_admin, "Создаёт gofuture.<region>.<tenant_id>.* и ACL")
-
+Rel(kafka_adapter, kafka_admin, "Создаёт региональные топики партнёра и ACL; region = sg/jkt/sao/scl")
 Rel(orchestrator, config_adapter, "10. Создаёт конфигурацию")
 Rel(config_adapter, config_service, "Записывает функции, интеграции, квоты и брендирование")
 Rel(config_adapter, secret_manager, "Создаёт секреты и ссылки на них")
-
 Rel(orchestrator, monitoring_adapter, "11. Подготавливает наблюдаемость")
-Rel(monitoring_adapter, observability, "Создаёт панели и правила по tenant_id")
-
+Rel(monitoring_adapter, observability, "Создаёт правила, панели и фильтры по tenant_id")
 Rel(orchestrator, verifier, "12. Запускает проверку готовности")
-Rel(verifier, iam, "Проверяет аутентификацию")
-Rel(verifier, data_platform, "Проверяет тестовую запись, чтение и изоляцию аналитики")
-Rel(verifier, kafka_admin, "Проверяет публикацию и получение события")
-Rel(verifier, observability, "Проверяет появление метрик")
+Rel(verifier, iam, "Проверяет токен, роли и SSO")
+Rel(verifier, partner_idp, "Проверяет федеративный вход при его наличии", "OIDC / SAML")
+Rel(verifier, data_platform, "Проверяет запись только в хранилища партнёра и изоляцию аналитики")
+Rel(verifier, kafka_admin, "Проверяет публикацию только в партнёрское пространство топиков")
+Rel(verifier, observability, "Проверяет метрики, журналы и трассы с tenant_id")
 Rel(verifier, orchestrator, "13. Возвращает результат проверки")
 Rel(orchestrator, tenant_registry, "14. Переводит партнёра в ACTIVE только при успехе")
-Rel(orchestrator, audit, "Пишет ход административных операций")
+Rel(orchestrator, audit, "Записывает ход административных операций")
 
 note right of state_store
   Каждый шаг имеет ключ:
   <tenant_id>:<step_name>
-
-  Повторный запуск сначала проверяет
-  сохранённый результат и существующий ресурс.
-  Дубликаты областей безопасности, баз и топиков
-  не создаются.
+  Повторный запуск проверяет сохранённый результат
+  и существующий ресурс. Дубликаты областей безопасности,
+  баз, развёртываний и топиков не создаются.
 end note
 
 note bottom of verifier
   Минимальная проверка перед ACTIVE:
-  - SSO работает;
+  - SSO работает, включая федерацию при её наличии;
   - токен содержит корректный tenant_id и роли;
   - сервис пишет только в хранилища партнёра;
+  - междоменный прямой доступ к базам запрещён;
   - событие попадает только в топик партнёра;
-  - метрика появляется с правильным tenant_id.
+  - телеметрия содержит правильный tenant_id.
 end note
 
 SHOW_LEGEND()
