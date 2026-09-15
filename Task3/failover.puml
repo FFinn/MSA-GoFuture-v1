@@ -12,7 +12,7 @@ Person(user, "Пользователь GoFuture", "Пассажир или во�
 Person(sre, "SRE-инженер", "Подтверждает региональную аварию и перевод базы", $tags="task3")
 
 Deployment_Node(edge, "Глобальный пограничный контур", "Google Cloud", "Единая точка входа", $tags="task3") {
-    Container(waf, "Cloud Armor", "WAF / DDoS", "Фильтрация внешнего трафика", $tags="task3")
+    Container(waf, "Политика Cloud Armor", "WAF / DDoS", "Применяется к входящему трафику глобального балансировщика", $tags="task3")
     Container(lb, "Глобальный балансировщик", "External Application Load Balancer", "Исключает нездоровые регионы и направляет трафик в ближайший доступный", $tags="task3")
     Container(health, "Проверки готовности", "Health Checks", "Проверяют критический путь региона", $tags="task3")
 }
@@ -35,8 +35,8 @@ Deployment_Node(sa_pair, "Южная Америка — симметричная
     Container(sc, "Santiago", "GKE southamerica-west1", "Парный активный регион и резерв для сегментов São Paulo", $tags="task3")
 }
 
-Rel(user, waf, "HTTPS", $tags="task3")
-Rel(waf, lb, "Разрешённый трафик", $tags="task3")
+Rel(user, lb, "HTTPS", $tags="task3")
+Rel(waf, lb, "Применяет политику защиты к входящему трафику", $tags="task3")
 Rel(health, sg_api, "1. Проверяет регион", $tags="task3")
 Rel(health, jk_api, "Проверяет парный регион", $tags="task3")
 Rel(lb, sg_api, "Штатный маршрут до аварии", "HTTPS", $tags="task3")
@@ -71,6 +71,9 @@ note right of jk #FDECEC
 end note
 
 note bottom of edge #FDECEC
+  Cloud Armor — политика глобального балансировщика,
+  а не отдельный сетевой переход.
+
   Автоматически:
   - проверки готовности;
   - исключение региона из новой балансировки;
