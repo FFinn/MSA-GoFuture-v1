@@ -13,7 +13,7 @@ Person(sa_user, "Пользователь в Южной Америке", "Пас
 
 System_Boundary(global_edge, "Глобальный пограничный контур") {
     Container(dns, "Единое имя GoFuture", "Cloud DNS", "Разрешает имя глобального входа", $tags="task3")
-    Container(waf, "Cloud Armor", "WAF + защита от DDoS", "Проверяет запрос до региональной инфраструктуры", $tags="task3")
+    Container(waf, "Политика Cloud Armor", "WAF + защита от DDoS", "Применяется на глобальном балансировщике до передачи запроса в регион", $tags="task3")
     Container(lb, "Глобальный внешний балансировщик приложений", "Google Cloud Load Balancing", "Выбирает ближайший здоровый регион с достаточной ёмкостью", $tags="task3")
     Container(health, "Региональные проверки готовности", "Health Checks", "Контролируют доступность API и критичных зависимостей", $tags="task3")
 }
@@ -30,8 +30,8 @@ System_Boundary(sa, "Южная Америка") {
 
 Rel(sea_user, dns, "Обращается к единому имени", "DNS", $tags="task3")
 Rel(sa_user, dns, "Обращается к единому имени", "DNS", $tags="task3")
-Rel(dns, waf, "Публичный HTTPS-трафик", $tags="task3")
-Rel(waf, lb, "Разрешённые запросы", "HTTPS", $tags="task3")
+Rel(dns, lb, "Возвращает глобальный адрес", "DNS/HTTPS", $tags="task3")
+Rel(waf, lb, "Применяет политику защиты к входящему трафику", $tags="task3")
 Rel(health, lb, "Передаёт состояние регионов", $tags="task3")
 
 Rel(lb, sg, "Штатный маршрут для ближайших пользователей SEA", "HTTPS", $tags="task3")
@@ -54,6 +54,9 @@ note right of lb #FDECEC
   2. есть свободная ёмкость;
   3. разрешено размещение данных;
   4. среди допустимых выбирается ближайший.
+
+  Cloud Armor — политика защиты балансировщика,
+  а не отдельный сетевой промежуточный узел.
 end note
 
 note bottom of sea #FDECEC
