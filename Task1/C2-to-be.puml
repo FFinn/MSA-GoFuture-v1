@@ -1,0 +1,161 @@
+@startuml GoFuture_C2_ToBe_Task1
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Container.puml
+
+LAYOUT_LEFT_RIGHT()
+
+title GoFuture — целевая схема контейнеров после доменной декомпозиции
+
+Person(passenger, "Пассажир", "Заказывает и оплачивает поездки")
+Person(driver, "Водитель", "Принимает поездки и передаёт местоположение")
+Person(manager, "Корпоративный менеджер", "Управляет корпоративными поездками")
+Person(accountant, "Бухгалтер", "Контролирует платежи и выплаты")
+Person(sre, "SRE-инженер", "Контролирует надёжность и инциденты")
+
+System_Boundary(gofuture, "GoFuture") {
+    Container(passenger_app, "Пассажирское приложение", "iOS / Android / Huawei", "Клиентское приложение пассажира")
+    Container(driver_app, "Водительское приложение", "iOS / Android / Huawei", "Клиентское приложение водителя")
+    Container(corp_portal, "Корпоративный портал", "React/Vue.js", "Интерфейс корпоративных клиентов")
+    Container(admin_portal, "Административная панель", "Django Admin", "Операционный интерфейс")
+
+    Container(api_gateway, "Шлюз программного интерфейса", "HTTP/REST", "Единая входная точка, маршрутизация и переключение между монолитом и сервисами")
+    Container(acl, "Слой обратной совместимости (ACL)", "Django/Python", "Адаптирует старые контракты и модель монолита к контрактам доменных сервисов")
+
+    Container(booking, "Сервис бронирования", "Django/Python", "Жизненный цикл заказа и поездки")
+    Container(driver_service, "Сервис водителей", "Django/Python", "Профили, рабочее состояние и доступность водителей")
+    Container(pricing, "Сервис ценообразования", "Django/Python", "Тарифы и динамический расчёт цены")
+    Container(payments, "Сервис платежей", "Django/Python", "Платежи пассажиров, возвраты и выплаты водителям")
+    Container(notification, "Сервис уведомлений", "Django/Python + Celery", "Подготовка и доставка уведомлений")
+    Container(geography, "Сервис географии", "Django/Python", "Геопоиск, маршруты, зоны и местоположение водителей")
+    Container(analytics, "Сервис аналитики", "Python", "Приём и подготовка аналитических данных")
+    Container(fraud, "Сервис защиты от мошенничества", "Django/Python", "Оценка риска поездок и платежных операций")
+
+    ContainerDb(booking_db, "База Booking", "PostgreSQL", "Заказы, поездки и их состояния")
+    ContainerDb(driver_db, "База Driver", "PostgreSQL", "Водители и их рабочее состояние")
+    ContainerDb(pricing_db, "База Pricing", "PostgreSQL", "Тарифы, правила и коэффициенты")
+    ContainerDb(payments_db, "База Payments", "PostgreSQL", "Платежи, возвраты и выплаты")
+    ContainerDb(notification_db, "База Notification", "PostgreSQL", "Шаблоны, устройства и статусы доставки")
+    ContainerDb(geography_db, "База Geography", "PostgreSQL", "Зоны и справочные геоданные")
+    ContainerDb(fraud_db, "База Fraud", "PostgreSQL", "Правила, признаки и оценки риска")
+    ContainerDb(analytics_db, "Аналитическое хранилище", "ClickHouse", "Факты и агрегаты")
+
+    Container(redis, "Оперативное хранилище", "Redis", "Краткоживущие данные, кэш и актуальное состояние")
+    Container(search, "Геопоисковый индекс", "Elasticsearch", "Поиск водителей и географических объектов")
+    ContainerQueue(rabbitmq, "Брокер сообщений переходного периода", "RabbitMQ", "Асинхронные задачи до внедрения событийной платформы в Task2")
+
+    Container(monolith, "Монолит переходного периода", "Django/Python", "Оставшаяся бизнес-логика, которая ещё не перенесена")
+    ContainerDb(monolith_db, "Унаследованная база", "PostgreSQL RDS", "Данные доменов, которые ещё не мигрировали")
+
+    Container(prometheus, "Prometheus", "Система мониторинга", "Сбор метрик")
+    Container(grafana, "Grafana", "Средство визуализации", "Панели показателей")
+    Container(loki, "Loki", "Хранилище журналов", "Централизованный сбор журналов")
+    Container(alertmanager, "Alertmanager", "Система оповещений", "Маршрутизация оповещений")
+
+    Container(jenkins, "Jenkins", "CI/CD", "Независимые сборки и развёртывания сервисов")
+    Container(registry, "Docker Registry", "Хранилище образов", "Версионированные образы сервисов")
+}
+
+System_Ext(yandex_pay, "Яндекс Пэй", "Платёжный шлюз")
+System_Ext(yandex_maps, "Яндекс Карты", "Картографический сервис")
+System_Ext(fcm, "Firebase Cloud Messaging", "Уведомления Android")
+System_Ext(apns, "Apple Push Notification Service", "Уведомления iOS")
+System_Ext(huawei_push, "Huawei Push Kit", "Уведомления Huawei")
+System_Ext(bank_api, "Банковские программные интерфейсы", "Выплаты водителям")
+
+Rel(passenger, passenger_app, "Использует")
+Rel(driver, driver_app, "Использует")
+Rel(manager, corp_portal, "Использует")
+Rel(accountant, admin_portal, "Использует")
+Rel(sre, grafana, "Контролирует состояние")
+Rel(sre, alertmanager, "Получает оповещения")
+
+Rel(passenger_app, api_gateway, "Запросы", "HTTPS/REST")
+Rel(driver_app, api_gateway, "Запросы", "HTTPS/REST")
+Rel(corp_portal, api_gateway, "Запросы", "HTTPS/REST")
+Rel(admin_portal, api_gateway, "Запросы", "HTTPS/REST")
+
+Rel(api_gateway, acl, "Старые версии контрактов и маршрутизация переходного периода", "HTTP/REST")
+Rel(api_gateway, booking, "Новые контракты Booking", "HTTP/REST")
+Rel(api_gateway, driver_service, "Новые контракты Driver", "HTTP/REST")
+Rel(api_gateway, pricing, "Новые контракты Pricing", "HTTP/REST")
+Rel(api_gateway, payments, "Новые контракты Payments", "HTTP/REST")
+Rel(api_gateway, notification, "Новые контракты Notification", "HTTP/REST")
+Rel(api_gateway, geography, "Новые контракты Geography", "HTTP/REST")
+Rel(api_gateway, fraud, "Новые контракты Fraud", "HTTP/REST")
+
+Rel(acl, monolith, "Направляет ещё не перенесённые операции и позволяет откатить маршрут", "HTTP/REST")
+Rel(acl, booking, "Адаптирует старый контракт")
+Rel(acl, driver_service, "Адаптирует старый контракт")
+Rel(acl, pricing, "Адаптирует старый контракт")
+Rel(acl, payments, "Адаптирует старый контракт")
+Rel(acl, notification, "Адаптирует старый контракт")
+Rel(acl, geography, "Адаптирует старый контракт")
+Rel(acl, fraud, "Адаптирует старый контракт")
+
+Rel(monolith, monolith_db, "Читает и записывает только данные ещё не выделенных доменов", "SQL/ORM")
+
+Rel(booking, booking_db, "Читает и записывает", "SQL/ORM")
+Rel(driver_service, driver_db, "Читает и записывает", "SQL/ORM")
+Rel(pricing, pricing_db, "Читает и записывает", "SQL/ORM")
+Rel(payments, payments_db, "Читает и записывает", "SQL/ORM")
+Rel(notification, notification_db, "Читает и записывает", "SQL/ORM")
+Rel(geography, geography_db, "Читает и записывает", "SQL/ORM")
+Rel(fraud, fraud_db, "Читает и записывает", "SQL/ORM")
+Rel(analytics, analytics_db, "Записывает и читает аналитику", "SQL")
+
+Rel(driver_service, redis, "Актуальное состояние водителей")
+Rel(pricing, redis, "Кэширует правила и коэффициенты")
+Rel(geography, redis, "Хранит краткоживущее географическое состояние")
+Rel(geography, search, "Индексирует и ищет водителей")
+
+Rel(booking, driver_service, "Запрашивает назначение и состояние водителя", "HTTP/REST")
+Rel(booking, pricing, "Запрашивает рассчитанную цену", "HTTP/REST")
+Rel(booking, geography, "Запрашивает маршрут и подбор", "HTTP/REST")
+Rel(booking, fraud, "Запрашивает оценку риска", "HTTP/REST")
+Rel(booking, payments, "Инициирует финансовую операцию", "HTTP/REST")
+
+Rel(booking, rabbitmq, "Переходные асинхронные задачи", "AMQP")
+Rel(payments, rabbitmq, "Переходные асинхронные задачи", "AMQP")
+Rel(notification, rabbitmq, "Получает задачи отправки", "AMQP")
+Rel(analytics, rabbitmq, "Получает переходный поток данных", "AMQP")
+
+Rel(geography, yandex_maps, "Получает маршруты и геоданные", "HTTPS")
+Rel(payments, yandex_pay, "Выполняет платежи", "HTTPS")
+Rel(payments, bank_api, "Выполняет выплаты", "HTTPS")
+Rel(notification, fcm, "Отправляет уведомления", "HTTPS")
+Rel(notification, apns, "Отправляет уведомления", "HTTPS")
+Rel(notification, huawei_push, "Отправляет уведомления", "HTTPS")
+
+Rel(booking, prometheus, "Метрики")
+Rel(driver_service, prometheus, "Метрики")
+Rel(pricing, prometheus, "Метрики")
+Rel(payments, prometheus, "Метрики")
+Rel(notification, prometheus, "Метрики")
+Rel(geography, prometheus, "Метрики")
+Rel(analytics, prometheus, "Метрики")
+Rel(fraud, prometheus, "Метрики")
+Rel(monolith, prometheus, "Метрики переходного периода")
+Rel(prometheus, grafana, "Данные для панелей", "PromQL")
+Rel(prometheus, alertmanager, "Правила оповещений")
+
+Rel(booking, loki, "Журналы")
+Rel(driver_service, loki, "Журналы")
+Rel(pricing, loki, "Журналы")
+Rel(payments, loki, "Журналы")
+Rel(notification, loki, "Журналы")
+Rel(geography, loki, "Журналы")
+Rel(analytics, loki, "Журналы")
+Rel(fraud, loki, "Журналы")
+Rel(monolith, loki, "Журналы")
+
+Rel(jenkins, registry, "Публикует образы", "Docker")
+Rel(jenkins, booking, "Независимое развёртывание")
+Rel(jenkins, driver_service, "Независимое развёртывание")
+Rel(jenkins, pricing, "Независимое развёртывание")
+Rel(jenkins, payments, "Независимое развёртывание")
+Rel(jenkins, notification, "Независимое развёртывание")
+Rel(jenkins, geography, "Независимое развёртывание")
+Rel(jenkins, analytics, "Независимое развёртывание")
+Rel(jenkins, fraud, "Независимое развёртывание")
+
+SHOW_LEGEND()
+@enduml
