@@ -15,22 +15,22 @@ System_Boundary(gofuture, "GoFuture") {
     Container(api_gateway, "Шлюз программного интерфейса", "HTTP/REST", "Входная точка клиентских запросов")
 
     Container(booking, "Booking", "Django / Python", "Жизненный цикл поездки; оркестратор Saga")
-    Container(driver_service, "Driver", "Django / Python", "Профиль, доступность и состояние водителя")
-    Container(geography, "Geography", "Django / Python", "Геопоиск, зоны, подбор и перераспределение водителей")
+    Container(driver_service, "Driver", "Django / Python", "Профиль, доступность и резервирование водителя")
+    Container(geography, "Geography", "Django / Python", "Геопоиск, зоны, поиск кандидатов и перераспределение водителей")
     Container(pricing, "Pricing", "Django / Python", "Тарифы и динамическое ценообразование")
     Container(payments, "Payments", "Django / Python", "Авторизация, списания, возвраты и выплаты")
     Container(fraud, "Fraud", "Django / Python", "Оценка риска поездки и платежа")
     Container(notification, "Notification", "Django / Python", "Отправка уведомлений")
     Container(analytics, "Analytics", "Python", "Построение аналитических проекций")
 
-    ContainerDb(domain_dbs, "Доменные PostgreSQL", "PostgreSQL", "Физически отдельная БД на каждый домен; бизнес-данные, outbox и inbox")
+    ContainerDb(domain_dbs, "Доменные PostgreSQL", "PostgreSQL", "Физически отдельная БД на каждый домен; бизнес-данные, исходящий журнал и реестр обработанных событий")
     ContainerDb(clickhouse, "Аналитическое хранилище", "ClickHouse", "Долговременные факты и агрегаты")
 
     System_Boundary(event_platform, "Событийная платформа") {
         ContainerQueue(kafka, "Apache Kafka", "Распределённый журнал событий", "Региональные топики событий и команд; много партиций внутри региона")
         Container(schema_registry, "Реестр схем", "Schema Registry", "Версии и проверка совместимости схем событий")
-        Container(connect, "Kafka Connect + Debezium", "CDC", "Читает outbox из доменных PostgreSQL и публикует события в Kafka")
-        Container(flink, "Apache Flink", "Потоковая обработка", "Спрос/предложение, динамическая цена, перераспределение водителей, признаки Fraud")
+        Container(connect, "Kafka Connect + Debezium", "Захват изменений данных", "Читает исходящий журнал доменных PostgreSQL и публикует события в Kafka")
+        Container(flink, "Apache Flink", "Потоковая обработка", "Спрос/предложение, сигналы для цены, перераспределения водителей и Fraud")
         ContainerDb(flink_checkpoints, "Контрольные точки Flink", "Объектное хранилище", "Состояние потоковых заданий для восстановления")
     }
 
@@ -42,11 +42,12 @@ System_Boundary(gofuture, "GoFuture") {
         Container(otel, "OpenTelemetry Collector", "Трассировка", "Собирает распределённые трассы")
         Container(jaeger, "Jaeger", "Трассировка", "Хранение и просмотр трасс по trace_id / saga_id")
         Container(kafka_exporter, "Kafka Exporter + JMX Exporter", "Экспорт метрик", "Метрики брокеров, партиций и групп потребителей")
+        Container(postgres_exporter, "PostgreSQL Exporter", "Экспорт метрик", "Метрики доменных PostgreSQL")
     }
 }
 
 System_Ext(payment_gateways, "Локальные платёжные шлюзы", "Яндекс Пэй и региональные провайдеры")
-System_Ext(push_providers, "Поставщики push-уведомлений", "FCM / APNS / Huawei Push Kit")
+System_Ext(push_providers, "Поставщики мобильных уведомлений", "FCM / APNS / Huawei Push Kit")
 System_Ext(maps, "Картографические сервисы", "Яндекс Карты и локальные поставщики")
 
 Rel(passenger, passenger_app, "Использует")
@@ -57,21 +58,22 @@ Rel(api_gateway, booking, "Команды поездки", "HTTP/REST")
 Rel(api_gateway, driver_service, "Состояние водителя", "HTTP/REST")
 Rel(api_gateway, geography, "Обновление местоположения", "HTTP/REST")
 
-Rel(booking, domain_dbs, "Изменяет состояние + outbox; хранит inbox и состояние Saga", "SQL")
-Rel(driver_service, domain_dbs, "Изменяет состояние + outbox; хранит inbox", "SQL")
-Rel(geography, domain_dbs, "Изменяет состояние + outbox; хранит inbox", "SQL")
-Rel(pricing, domain_dbs, "Изменяет состояние + outbox; хранит inbox", "SQL")
-Rel(payments, domain_dbs, "Изменяет состояние + outbox; хранит inbox", "SQL")
-Rel(fraud, domain_dbs, "Изменяет состояние + outbox; хранит inbox", "SQL")
-Rel(notification, domain_dbs, "Изменяет состояние + outbox; хранит inbox", "SQL")
+Rel(booking, domain_dbs, "Изменяет состояние + исходящий журнал; хранит реестр обработанных событий и состояние Saga", "SQL")
+Rel(driver_service, domain_dbs, "Изменяет состояние + исходящий журнал; хранит реестр обработанных событий", "SQL")
+Rel(geography, domain_dbs, "Изменяет состояние + исходящий журнал; хранит реестр обработанных событий", "SQL")
+Rel(pricing, domain_dbs, "Изменяет состояние + исходящий журнал; хранит реестр обработанных событий", "SQL")
+Rel(payments, domain_dbs, "Изменяет состояние + исходящий журнал; хранит реестр обработанных событий", "SQL")
+Rel(fraud, domain_dbs, "Изменяет состояние + исходящий журнал; хранит реестр обработанных событий", "SQL")
+Rel(notification, domain_dbs, "Изменяет состояние + исходящий журнал; хранит реестр обработанных событий", "SQL")
 
-Rel(connect, domain_dbs, "Читает outbox из журналов PostgreSQL", "CDC")
+Rel(connect, domain_dbs, "Читает исходящий журнал из журналов PostgreSQL", "CDC")
+Rel(connect, schema_registry, "Получает схемы для сериализации событий")
 Rel(connect, kafka, "Публикует доменные события и команды")
-Rel(kafka, schema_registry, "Проверяет версии схем")
+Rel(flink, schema_registry, "Использует версии схем потоков")
 
 Rel(kafka, booking, "Результаты шагов Saga и доменные события")
-Rel(kafka, driver_service, "Команды и события поездок/географии")
-Rel(kafka, geography, "Команды подбора и сигналы перераспределения")
+Rel(kafka, driver_service, "Команды резервирования и освобождения водителя")
+Rel(kafka, geography, "Команды поиска водителя и сигналы перераспределения")
 Rel(kafka, pricing, "Команды расчёта и сигналы спроса/предложения")
 Rel(kafka, payments, "Команды авторизации/списания и события поездок")
 Rel(kafka, fraud, "Команды проверки и потоковые признаки")
@@ -79,7 +81,7 @@ Rel(kafka, notification, "События, требующие уведомлен�
 Rel(kafka, analytics, "Все необходимые доменные события")
 
 Rel(kafka, flink, "BookingCreated, DriverLocationUpdated и другие потоки")
-Rel(flink, kafka, "DynamicPriceUpdated, DriverRedistributionSuggested и потоковые признаки")
+Rel(flink, kafka, "DemandSupplySignalCalculated, DriverRedistributionSignalCalculated, FraudFeaturesCalculated")
 Rel(flink, flink_checkpoints, "Сохраняет контрольные точки")
 Rel(analytics, clickhouse, "Записывает факты и агрегаты", "SQL")
 
@@ -88,7 +90,9 @@ Rel(payments, payment_gateways, "Авторизация, списание и в�
 Rel(notification, push_providers, "Доставка уведомлений", "HTTPS")
 
 Rel(kafka_exporter, kafka, "Читает технические метрики", "JMX / Kafka API")
+Rel(postgres_exporter, domain_dbs, "Читает технические метрики", "PostgreSQL")
 Rel(prometheus, kafka_exporter, "Собирает метрики", "HTTP")
+Rel(prometheus, postgres_exporter, "Собирает метрики", "HTTP")
 Rel(prometheus, flink, "Собирает метрики Flink", "HTTP")
 Rel(prometheus, connect, "Собирает метрики Connect/Debezium", "HTTP/JMX")
 Rel(prometheus, booking, "Собирает RED- и Saga-метрики", "HTTP")
@@ -125,6 +129,7 @@ note right of kafka
   gofuture.<region>.pricing.events.v1
   gofuture.<region>.payments.events.v1
   gofuture.<region>.fraud.events.v1
+  gofuture.<region>.stream.signals.v1
   gofuture.<region>.<domain>.commands.v1
 
   Внутри региона:
@@ -137,6 +142,7 @@ note right of booking
   BookingCreated
   -> Price + Fraud параллельно
   -> Driver Matching
+  -> Driver Reservation
   -> Payment Authorization
   -> BookingConfirmed
   -> TripStarted
