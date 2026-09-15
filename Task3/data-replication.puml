@@ -9,69 +9,73 @@ AddElementTag("task3", $bgColor="#FDECEC", $fontColor="#B71C1C", $borderColor="#
 AddRelTag("task3", $textColor="#D32F2F", $lineColor="#D32F2F")
 
 Deployment_Node(sea, "Юго-Восточная Азия", "Парная региональная группа", "Два активных региона с разными владельцами данных", $tags="task3") {
-    Deployment_Node(sg, "Singapore", "asia-southeast1", "Активный регион", $tags="task3") {
-        Container(sg_apps, "Доменные сервисы Singapore", "GKE", "Обслуживают локальный трафик и записывают только свои сегменты данных", $tags="task3")
-        ContainerDb(sg_pg, "PostgreSQL Singapore", "Cloud SQL PostgreSQL", "Основные сегменты с region_owner=Singapore", $tags="task3")
-        ContainerDb(jk_replica_in_sg, "Резерв сегментов Jakarta", "Cloud SQL cross-region replica", "Только чтение до аварийного переключения", $tags="task3")
-        ContainerQueue(sg_kafka, "Kafka Singapore", "Apache Kafka", "Локальные доменные события", $tags="task3")
-        Container(sg_mirror, "MirrorMaker 2 Singapore", "Kafka MirrorMaker 2", "Зеркалирует критичные топики из/в Jakarta", $tags="task3")
+    Deployment_Node(sg, "Сингапур", "asia-southeast1", "Внутренний идентификатор региона: sg", $tags="task3") {
+        Container(sg_apps, "Доменные сервисы — Сингапур", "региональный GKE", "Booking, Driver, Geography, Pricing, Payments, Fraud, Notification и Analytics", $tags="task3")
+        ContainerDb(sg_pg, "Доменные PostgreSQL — Сингапур", "Cloud SQL PostgreSQL", "Отдельная база каждого домена; основные сегменты с region_owner=sg", $tags="task3")
+        ContainerDb(jkt_replica_in_sg, "Резерв доменных PostgreSQL Джакарты", "Cloud SQL cross-region replicas", "Отдельные реплики доменных баз региона jkt; только чтение до аварийного переключения", $tags="task3")
+        ContainerQueue(sg_kafka, "Apache Kafka — Сингапур", "Apache Kafka", "Локальные доменные события региона sg", $tags="task3")
+        Container(sg_mirror, "MirrorMaker 2 — Сингапур", "Kafka MirrorMaker 2", "Зеркалирует критичные топики из/в Джакарту", $tags="task3")
     }
 
-    Deployment_Node(jk, "Jakarta", "asia-southeast2", "Активный регион", $tags="task3") {
-        Container(jk_apps, "Доменные сервисы Jakarta", "GKE", "Обслуживают локальный трафик и записывают только свои сегменты данных", $tags="task3")
-        ContainerDb(jk_pg, "PostgreSQL Jakarta", "Cloud SQL PostgreSQL", "Основные сегменты с region_owner=Jakarta", $tags="task3")
-        ContainerDb(sg_replica_in_jk, "Резерв сегментов Singapore", "Cloud SQL cross-region replica", "Только чтение до аварийного переключения", $tags="task3")
-        ContainerQueue(jk_kafka, "Kafka Jakarta", "Apache Kafka", "Локальные доменные события", $tags="task3")
-        Container(jk_mirror, "MirrorMaker 2 Jakarta", "Kafka MirrorMaker 2", "Зеркалирует критичные топики из/в Singapore", $tags="task3")
+    Deployment_Node(jkt, "Джакарта", "asia-southeast2", "Внутренний идентификатор региона: jkt", $tags="task3") {
+        Container(jkt_apps, "Доменные сервисы — Джакарта", "региональный GKE", "Booking, Driver, Geography, Pricing, Payments, Fraud, Notification и Analytics", $tags="task3")
+        ContainerDb(jkt_pg, "Доменные PostgreSQL — Джакарта", "Cloud SQL PostgreSQL", "Отдельная база каждого домена; основные сегменты с region_owner=jkt", $tags="task3")
+        ContainerDb(sg_replica_in_jkt, "Резерв доменных PostgreSQL Сингапура", "Cloud SQL cross-region replicas", "Отдельные реплики доменных баз региона sg; только чтение до аварийного переключения", $tags="task3")
+        ContainerQueue(jkt_kafka, "Apache Kafka — Джакарта", "Apache Kafka", "Локальные доменные события региона jkt", $tags="task3")
+        Container(jkt_mirror, "MirrorMaker 2 — Джакарта", "Kafka MirrorMaker 2", "Зеркалирует критичные топики из/в Сингапур", $tags="task3")
     }
 }
 
 Deployment_Node(sa, "Южная Америка", "Парная региональная группа", "Два активных региона с разными владельцами данных", $tags="task3") {
-    Deployment_Node(sp, "São Paulo", "southamerica-east1", "Активный регион", $tags="task3") {
-        Container(sp_apps, "Доменные сервисы São Paulo", "GKE", "Обслуживают локальный трафик и записывают только свои сегменты данных", $tags="task3")
-        ContainerDb(sp_pg, "PostgreSQL São Paulo", "Cloud SQL PostgreSQL", "Основные сегменты с region_owner=São Paulo", $tags="task3")
-        ContainerDb(sc_replica_in_sp, "Резерв сегментов Santiago", "Cloud SQL cross-region replica", "Только чтение до аварийного переключения", $tags="task3")
-        ContainerQueue(sp_kafka, "Kafka São Paulo", "Apache Kafka", "Локальные доменные события", $tags="task3")
-        Container(sp_mirror, "MirrorMaker 2 São Paulo", "Kafka MirrorMaker 2", "Зеркалирует критичные топики из/в Santiago", $tags="task3")
+    Deployment_Node(sao, "Сан-Паулу", "southamerica-east1", "Внутренний идентификатор региона: sao", $tags="task3") {
+        Container(sao_apps, "Доменные сервисы — Сан-Паулу", "региональный GKE", "Booking, Driver, Geography, Pricing, Payments, Fraud, Notification и Analytics", $tags="task3")
+        ContainerDb(sao_pg, "Доменные PostgreSQL — Сан-Паулу", "Cloud SQL PostgreSQL", "Отдельная база каждого домена; основные сегменты с region_owner=sao", $tags="task3")
+        ContainerDb(scl_replica_in_sao, "Резерв доменных PostgreSQL Сантьяго", "Cloud SQL cross-region replicas", "Отдельные реплики доменных баз региона scl; только чтение до аварийного переключения", $tags="task3")
+        ContainerQueue(sao_kafka, "Apache Kafka — Сан-Паулу", "Apache Kafka", "Локальные доменные события региона sao", $tags="task3")
+        Container(sao_mirror, "MirrorMaker 2 — Сан-Паулу", "Kafka MirrorMaker 2", "Зеркалирует критичные топики из/в Сантьяго", $tags="task3")
     }
 
-    Deployment_Node(sc, "Santiago", "southamerica-west1", "Активный регион", $tags="task3") {
-        Container(sc_apps, "Доменные сервисы Santiago", "GKE", "Обслуживают локальный трафик и записывают только свои сегменты данных", $tags="task3")
-        ContainerDb(sc_pg, "PostgreSQL Santiago", "Cloud SQL PostgreSQL", "Основные сегменты с region_owner=Santiago", $tags="task3")
-        ContainerDb(sp_replica_in_sc, "Резерв сегментов São Paulo", "Cloud SQL cross-region replica", "Только чтение до аварийного переключения", $tags="task3")
-        ContainerQueue(sc_kafka, "Kafka Santiago", "Apache Kafka", "Локальные доменные события", $tags="task3")
-        Container(sc_mirror, "MirrorMaker 2 Santiago", "Kafka MirrorMaker 2", "Зеркалирует критичные топики из/в São Paulo", $tags="task3")
+    Deployment_Node(scl, "Сантьяго", "southamerica-west1", "Внутренний идентификатор региона: scl", $tags="task3") {
+        Container(scl_apps, "Доменные сервисы — Сантьяго", "региональный GKE", "Booking, Driver, Geography, Pricing, Payments, Fraud, Notification и Analytics", $tags="task3")
+        ContainerDb(scl_pg, "Доменные PostgreSQL — Сантьяго", "Cloud SQL PostgreSQL", "Отдельная база каждого домена; основные сегменты с region_owner=scl", $tags="task3")
+        ContainerDb(sao_replica_in_scl, "Резерв доменных PostgreSQL Сан-Паулу", "Cloud SQL cross-region replicas", "Отдельные реплики доменных баз региона sao; только чтение до аварийного переключения", $tags="task3")
+        ContainerQueue(scl_kafka, "Apache Kafka — Сантьяго", "Apache Kafka", "Локальные доменные события региона scl", $tags="task3")
+        Container(scl_mirror, "MirrorMaker 2 — Сантьяго", "Kafka MirrorMaker 2", "Зеркалирует критичные топики из/в Сан-Паулу", $tags="task3")
     }
 }
 
-Rel(sg_apps, sg_pg, "Записывает локальные сегменты", "SQL", $tags="task3")
-Rel(jk_apps, jk_pg, "Записывает локальные сегменты", "SQL", $tags="task3")
-Rel(sp_apps, sp_pg, "Записывает локальные сегменты", "SQL", $tags="task3")
-Rel(sc_apps, sc_pg, "Записывает локальные сегменты", "SQL", $tags="task3")
+Rel(sg_apps, sg_pg, "Записывает только сегменты региона sg", "SQL", $tags="task3")
+Rel(jkt_apps, jkt_pg, "Записывает только сегменты региона jkt", "SQL", $tags="task3")
+Rel(sao_apps, sao_pg, "Записывает только сегменты региона sao", "SQL", $tags="task3")
+Rel(scl_apps, scl_pg, "Записывает только сегменты региона scl", "SQL", $tags="task3")
 
-Rel(sg_pg, sg_replica_in_jk, "Асинхронная межрегиональная репликация", $tags="task3")
-Rel(jk_pg, jk_replica_in_sg, "Асинхронная межрегиональная репликация", $tags="task3")
-Rel(sp_pg, sp_replica_in_sc, "Асинхронная межрегиональная репликация", $tags="task3")
-Rel(sc_pg, sc_replica_in_sp, "Асинхронная межрегиональная репликация", $tags="task3")
+Rel(sg_pg, sg_replica_in_jkt, "Асинхронная межрегиональная репликация каждой доменной базы", $tags="task3")
+Rel(jkt_pg, jkt_replica_in_sg, "Асинхронная межрегиональная репликация каждой доменной базы", $tags="task3")
+Rel(sao_pg, sao_replica_in_scl, "Асинхронная межрегиональная репликация каждой доменной базы", $tags="task3")
+Rel(scl_pg, scl_replica_in_sao, "Асинхронная межрегиональная репликация каждой доменной базы", $tags="task3")
 
 Rel(sg_apps, sg_kafka, "Публикует и потребляет локальные события", $tags="task3")
-Rel(jk_apps, jk_kafka, "Публикует и потребляет локальные события", $tags="task3")
-Rel(sp_apps, sp_kafka, "Публикует и потребляет локальные события", $tags="task3")
-Rel(sc_apps, sc_kafka, "Публикует и потребляет локальные события", $tags="task3")
+Rel(jkt_apps, jkt_kafka, "Публикует и потребляет локальные события", $tags="task3")
+Rel(sao_apps, sao_kafka, "Публикует и потребляет локальные события", $tags="task3")
+Rel(scl_apps, scl_kafka, "Публикует и потребляет локальные события", $tags="task3")
 
 Rel(sg_kafka, sg_mirror, "Критичные топики", $tags="task3")
-Rel(sg_mirror, jk_kafka, "Зеркалирует Singapore → Jakarta", $tags="task3")
-Rel(jk_kafka, jk_mirror, "Критичные топики", $tags="task3")
-Rel(jk_mirror, sg_kafka, "Зеркалирует Jakarta → Singapore", $tags="task3")
-Rel(sp_kafka, sp_mirror, "Критичные топики", $tags="task3")
-Rel(sp_mirror, sc_kafka, "Зеркалирует São Paulo → Santiago", $tags="task3")
-Rel(sc_kafka, sc_mirror, "Критичные топики", $tags="task3")
-Rel(sc_mirror, sp_kafka, "Зеркалирует Santiago → São Paulo", $tags="task3")
+Rel(sg_mirror, jkt_kafka, "Зеркалирует sg → jkt", $tags="task3")
+Rel(jkt_kafka, jkt_mirror, "Критичные топики", $tags="task3")
+Rel(jkt_mirror, sg_kafka, "Зеркалирует jkt → sg", $tags="task3")
+Rel(sao_kafka, sao_mirror, "Критичные топики", $tags="task3")
+Rel(sao_mirror, scl_kafka, "Зеркалирует sao → scl", $tags="task3")
+Rel(scl_kafka, scl_mirror, "Критичные топики", $tags="task3")
+Rel(scl_mirror, sao_kafka, "Зеркалирует scl → sao", $tags="task3")
 
 note top of sea #FDECEC
   Один объект — один владелец записи.
-  Singapore и Jakarta одновременно активны,
+  Сингапур и Джакарта одновременно активны,
   но пишут в разные сегменты данных.
+
+  PostgreSQL остаются доменными:
+  Booking не читает базу Driver,
+  Payments не читает базу Booking и т. д.
 end note
 
 note bottom of sea #FDECEC
@@ -82,9 +86,10 @@ note bottom of sea #FDECEC
 end note
 
 note bottom of sa #FDECEC
-  Redis и Elasticsearch не являются источниками истины.
-  Их состояние восстанавливается после переключения
-  из PostgreSQL и доменных событий.
+  Оперативные хранилища Redis принадлежат
+  Driver, Pricing и Geography, а Elasticsearch — Geography.
+  Они не являются источниками истины и восстанавливаются
+  после переключения из доменных PostgreSQL и событий.
 end note
 
 SHOW_LEGEND()
