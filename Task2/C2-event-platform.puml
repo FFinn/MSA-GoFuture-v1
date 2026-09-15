@@ -42,7 +42,7 @@ System_Boundary(gofuture, "GoFuture") {
     System_Boundary(event_platform, "Событийная платформа") {
         ContainerQueue(kafka, "Apache Kafka", "Распределённый журнал событий", "Отдельный набор топиков на регион; внутри региона — несколько Kafka-партиций по ключу агрегата")
         Container(schema_registry, "Реестр схем", "Schema Registry", "Версии и проверка совместимости схем событий")
-        Container(connect, "Kafka Connect + Debezium", "Захват изменений данных", "Читает outbox доменных PostgreSQL и публикует события и команды в Kafka")
+        Container(connect, "Kafka Connect + Debezium", "Захват изменений данных", "Читает outbox доменных баз PostgreSQL и публикует события и команды в Kafka")
         Container(flink, "Apache Flink", "Потоковая обработка", "Спрос/предложение, сигналы для цены, перераспределения водителей и Fraud")
         ContainerDb(flink_checkpoints, "Контрольные точки Flink", "Объектное хранилище", "Состояние потоковых заданий для восстановления")
     }
@@ -55,7 +55,7 @@ System_Boundary(gofuture, "GoFuture") {
         Container(otel, "OpenTelemetry Collector", "Трассировка", "Собирает распределённые трассы")
         Container(jaeger, "Jaeger", "Трассировка", "Хранение и просмотр трасс по trace_id / saga_id")
         Container(kafka_exporter, "Kafka Exporter + JMX Exporter", "Экспорт метрик", "Метрики брокеров, партиций и групп потребителей")
-        Container(postgres_exporter, "PostgreSQL Exporter", "Экспорт метрик", "Метрики отдельных доменных PostgreSQL")
+        Container(postgres_exporter, "PostgreSQL Exporter", "Экспорт метрик", "Метрики отдельных доменных баз PostgreSQL")
     }
 }
 
