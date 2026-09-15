@@ -29,13 +29,13 @@ System_Boundary(gofuture, "GoFuture") {
         Container(analytics, "Analytics — сервис аналитики", "Python", "Приём и подготовка аналитических данных")
         Container(fraud, "Fraud — сервис защиты от мошенничества", "Django/Python", "Оценка риска поездок и платежных операций")
 
-        ContainerDb(booking_db, "База Booking", "PostgreSQL", "Заказы, поездки и их состояния")
-        ContainerDb(driver_db, "База Driver", "PostgreSQL", "Водители и их рабочее состояние")
-        ContainerDb(pricing_db, "База Pricing", "PostgreSQL", "Тарифы, правила и коэффициенты")
-        ContainerDb(payments_db, "База Payments", "PostgreSQL", "Платежи, возвраты и выплаты")
-        ContainerDb(notification_db, "База Notification", "PostgreSQL", "Шаблоны, устройства и статусы доставки")
-        ContainerDb(geography_db, "База Geography", "PostgreSQL", "Зоны и справочные геоданные")
-        ContainerDb(fraud_db, "База Fraud", "PostgreSQL", "Правила, признаки и оценки риска")
+        ContainerDb(booking_db, "Booking PostgreSQL", "PostgreSQL", "Заказы, поездки и их состояния")
+        ContainerDb(driver_db, "Driver PostgreSQL", "PostgreSQL", "Водители и их рабочее состояние")
+        ContainerDb(pricing_db, "Pricing PostgreSQL", "PostgreSQL", "Тарифы, правила и коэффициенты")
+        ContainerDb(payments_db, "Payments PostgreSQL", "PostgreSQL", "Платежи, возвраты и выплаты")
+        ContainerDb(notification_db, "Notification PostgreSQL", "PostgreSQL", "Шаблоны, устройства и статусы доставки")
+        ContainerDb(geography_db, "Geography PostgreSQL", "PostgreSQL", "Зоны и справочные геоданные")
+        ContainerDb(fraud_db, "Fraud PostgreSQL", "PostgreSQL", "Правила, признаки и оценки риска")
         ContainerDb(analytics_db, "Аналитическое хранилище", "ClickHouse", "Факты и агрегаты")
 
         ContainerDb(driver_cache, "Оперативное хранилище Driver", "Redis", "Только состояние и кэш домена Driver")
@@ -62,12 +62,10 @@ System_Boundary(gofuture, "GoFuture") {
     Container(registry, "Docker Registry", "Хранилище образов", "Версионированные образы сервисов")
 }
 
-System_Ext(yandex_pay, "Яндекс Пэй", "Платёжный шлюз")
-System_Ext(yandex_maps, "Яндекс Карты", "Картографический сервис")
-System_Ext(fcm, "Firebase Cloud Messaging", "Уведомления Android")
-System_Ext(apns, "Apple Push Notification Service", "Уведомления iOS")
-System_Ext(huawei_push, "Huawei Push Kit", "Уведомления Huawei")
+System_Ext(payment_gateways, "Платёжные шлюзы", "Яндекс Пэй и региональные поставщики")
 System_Ext(bank_api, "Банковские программные интерфейсы", "Выплаты водителям")
+System_Ext(maps, "Картографические сервисы", "Яндекс Карты и региональные поставщики")
+System_Ext(push_providers, "Поставщики мобильных уведомлений", "FCM / APNS / Huawei Push Kit")
 
 Rel(passenger, passenger_app, "Использует")
 Rel(driver, driver_app, "Использует")
@@ -126,12 +124,10 @@ Rel(payments, rabbitmq, "Переходные асинхронные задач�
 Rel(notification, rabbitmq, "Получает задачи отправки", "AMQP")
 Rel(analytics, rabbitmq, "Получает переходный поток данных", "AMQP")
 
-Rel(geography, yandex_maps, "Получает маршруты и геоданные", "HTTPS")
-Rel(payments, yandex_pay, "Выполняет платежи", "HTTPS")
+Rel(geography, maps, "Получает маршруты и геоданные", "HTTPS")
+Rel(payments, payment_gateways, "Выполняет платежи", "HTTPS")
 Rel(payments, bank_api, "Выполняет выплаты", "HTTPS")
-Rel(notification, fcm, "Отправляет уведомления", "HTTPS")
-Rel(notification, apns, "Отправляет уведомления", "HTTPS")
-Rel(notification, huawei_push, "Отправляет уведомления", "HTTPS")
+Rel(notification, push_providers, "Отправляет уведомления", "HTTPS")
 
 Rel(prometheus, booking, "Собирает метрики", "HTTP")
 Rel(prometheus, driver_service, "Собирает метрики", "HTTP")
