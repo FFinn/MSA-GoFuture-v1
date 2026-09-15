@@ -3,7 +3,7 @@
 
 LAYOUT_LEFT_RIGHT()
 
-title GoFuture — целевая схема контейнеров после доменной декомпозиции
+title GoFuture — целевая архитектура периода поэтапной декомпозиции
 
 Person(passenger, "Пассажир", "Заказывает и оплачивает поездки")
 Person(driver, "Водитель", "Принимает поездки и передаёт местоположение")
@@ -18,37 +18,45 @@ System_Boundary(gofuture, "GoFuture") {
     Container(admin_portal, "Административная панель", "Django Admin", "Операционный интерфейс")
 
     Container(api_gateway, "Шлюз программного интерфейса", "HTTP/REST", "Единая входная точка, маршрутизация и переключение между монолитом и сервисами")
-    Container(acl, "Слой обратной совместимости (ACL)", "Django/Python", "Адаптирует старые контракты и модель монолита к контрактам доменных сервисов")
 
-    Container(booking, "Сервис бронирования", "Django/Python", "Жизненный цикл заказа и поездки")
-    Container(driver_service, "Сервис водителей", "Django/Python", "Профили, рабочее состояние и доступность водителей")
-    Container(pricing, "Сервис ценообразования", "Django/Python", "Тарифы и динамический расчёт цены")
-    Container(payments, "Сервис платежей", "Django/Python", "Платежи пассажиров, возвраты и выплаты водителям")
-    Container(notification, "Сервис уведомлений", "Django/Python + Celery", "Подготовка и доставка уведомлений")
-    Container(geography, "Сервис географии", "Django/Python", "Геопоиск, маршруты, зоны и местоположение водителей")
-    Container(analytics, "Сервис аналитики", "Python", "Приём и подготовка аналитических данных")
-    Container(fraud, "Сервис защиты от мошенничества", "Django/Python", "Оценка риска поездок и платежных операций")
+    Boundary(target_domains, "Целевые доменные сервисы") {
+        Container(booking, "Сервис бронирования", "Django/Python", "Жизненный цикл поездки; принимает решение о назначении выбранного водителя")
+        Container(driver_service, "Сервис водителей", "Django/Python", "Профиль, рабочее состояние и решение о том, может ли водитель принимать заказы")
+        Container(pricing, "Сервис ценообразования", "Django/Python", "Тарифы и динамический расчёт цены")
+        Container(payments, "Сервис платежей", "Django/Python", "Платежи пассажиров, возвраты и выплаты водителям")
+        Container(notification, "Сервис уведомлений", "Django/Python + Celery", "Подготовка и доставка уведомлений")
+        Container(geography, "Сервис географии", "Django/Python", "Геопоиск, маршруты, зоны; находит и ранжирует подходящих водителей")
+        Container(analytics, "Сервис аналитики", "Python", "Приём и подготовка аналитических данных")
+        Container(fraud, "Сервис защиты от мошенничества", "Django/Python", "Оценка риска поездок и платежных операций")
 
-    ContainerDb(booking_db, "База Booking", "PostgreSQL", "Заказы, поездки и их состояния")
-    ContainerDb(driver_db, "База Driver", "PostgreSQL", "Водители и их рабочее состояние")
-    ContainerDb(pricing_db, "База Pricing", "PostgreSQL", "Тарифы, правила и коэффициенты")
-    ContainerDb(payments_db, "База Payments", "PostgreSQL", "Платежи, возвраты и выплаты")
-    ContainerDb(notification_db, "База Notification", "PostgreSQL", "Шаблоны, устройства и статусы доставки")
-    ContainerDb(geography_db, "База Geography", "PostgreSQL", "Зоны и справочные геоданные")
-    ContainerDb(fraud_db, "База Fraud", "PostgreSQL", "Правила, признаки и оценки риска")
-    ContainerDb(analytics_db, "Аналитическое хранилище", "ClickHouse", "Факты и агрегаты")
+        ContainerDb(booking_db, "База Booking", "PostgreSQL", "Заказы, поездки и их состояния")
+        ContainerDb(driver_db, "База Driver", "PostgreSQL", "Водители и их рабочее состояние")
+        ContainerDb(pricing_db, "База Pricing", "PostgreSQL", "Тарифы, правила и коэффициенты")
+        ContainerDb(payments_db, "База Payments", "PostgreSQL", "Платежи, возвраты и выплаты")
+        ContainerDb(notification_db, "База Notification", "PostgreSQL", "Шаблоны, устройства и статусы доставки")
+        ContainerDb(geography_db, "База Geography", "PostgreSQL", "Зоны и справочные геоданные")
+        ContainerDb(fraud_db, "База Fraud", "PostgreSQL", "Правила, признаки и оценки риска")
+        ContainerDb(analytics_db, "Аналитическое хранилище", "ClickHouse", "Факты и агрегаты")
 
-    Container(redis, "Оперативное хранилище", "Redis", "Краткоживущие данные, кэш и актуальное состояние")
-    Container(search, "Геопоисковый индекс", "Elasticsearch", "Поиск водителей и географических объектов")
-    ContainerQueue(rabbitmq, "Брокер сообщений переходного периода", "RabbitMQ", "Асинхронные задачи до внедрения событийной платформы в Task2")
+        ContainerDb(driver_cache, "Оперативное хранилище Driver", "Redis", "Только состояние и кэш домена Driver")
+        ContainerDb(pricing_cache, "Оперативное хранилище Pricing", "Redis", "Только кэш правил и коэффициентов Pricing")
+        ContainerDb(geography_cache, "Оперативное хранилище Geography", "Redis", "Только краткоживущее географическое состояние")
+        Container(search, "Геопоисковый индекс Geography", "Elasticsearch", "Поиск водителей и географических объектов")
+    }
 
-    Container(monolith, "Монолит переходного периода", "Django/Python", "Оставшаяся бизнес-логика, которая ещё не перенесена")
-    ContainerDb(monolith_db, "Унаследованная база", "PostgreSQL RDS", "Данные доменов, которые ещё не мигрировали")
+    Boundary(transition, "Переходный контур — временные компоненты") {
+        Container(acl, "Слой обратной совместимости (ACL)", "Django/Python", "Адаптирует старые контракты и модель монолита к контрактам доменных сервисов")
+        Container(monolith, "Монолит переходного периода", "Django/Python", "Оставшаяся бизнес-логика, которая ещё не перенесена")
+        ContainerDb(monolith_db, "Унаследованная база", "PostgreSQL RDS", "Данные доменов, которые ещё не мигрировали")
+        ContainerQueue(rabbitmq, "Брокер сообщений переходного периода", "RabbitMQ", "Асинхронные задачи до внедрения событийной платформы в Task2")
+    }
 
-    Container(prometheus, "Prometheus", "Система мониторинга", "Сбор метрик")
-    Container(grafana, "Grafana", "Средство визуализации", "Панели показателей")
-    Container(loki, "Loki", "Хранилище журналов", "Централизованный сбор журналов")
-    Container(alertmanager, "Alertmanager", "Система оповещений", "Маршрутизация оповещений")
+    Boundary(observability, "Наблюдаемость") {
+        Container(prometheus, "Prometheus", "Система мониторинга", "Самостоятельно опрашивает конечные точки метрик")
+        Container(grafana, "Grafana", "Средство визуализации", "Запрашивает метрики Prometheus и строит панели")
+        Container(loki, "Loki", "Хранилище журналов", "Централизованный сбор журналов")
+        Container(alertmanager, "Alertmanager", "Система оповещений", "Маршрутизация оповещений")
+    }
 
     Container(jenkins, "Jenkins", "CI/CD", "Независимые сборки и развёртывания сервисов")
     Container(registry, "Docker Registry", "Хранилище образов", "Версионированные образы сервисов")
@@ -83,13 +91,13 @@ Rel(api_gateway, geography, "Новые контракты Geography", "HTTP/RES
 Rel(api_gateway, fraud, "Новые контракты Fraud", "HTTP/REST")
 
 Rel(acl, monolith, "Направляет ещё не перенесённые операции и позволяет откатить маршрут", "HTTP/REST")
-Rel(acl, booking, "Адаптирует старый контракт")
-Rel(acl, driver_service, "Адаптирует старый контракт")
-Rel(acl, pricing, "Адаптирует старый контракт")
-Rel(acl, payments, "Адаптирует старый контракт")
-Rel(acl, notification, "Адаптирует старый контракт")
-Rel(acl, geography, "Адаптирует старый контракт")
-Rel(acl, fraud, "Адаптирует старый контракт")
+Rel(acl, booking, "Адаптирует старый контракт Booking", "HTTP/REST")
+Rel(acl, driver_service, "Адаптирует старый контракт Driver", "HTTP/REST")
+Rel(acl, pricing, "Адаптирует старый контракт Pricing", "HTTP/REST")
+Rel(acl, payments, "Адаптирует старый контракт Payments", "HTTP/REST")
+Rel(acl, notification, "Адаптирует старый контракт Notification", "HTTP/REST")
+Rel(acl, geography, "Адаптирует старый контракт Geography", "HTTP/REST")
+Rel(acl, fraud, "Адаптирует старый контракт Fraud", "HTTP/REST")
 
 Rel(monolith, monolith_db, "Читает и записывает только данные ещё не выделенных доменов", "SQL/ORM")
 
@@ -102,14 +110,14 @@ Rel(geography, geography_db, "Читает и записывает", "SQL/ORM")
 Rel(fraud, fraud_db, "Читает и записывает", "SQL/ORM")
 Rel(analytics, analytics_db, "Записывает и читает аналитику", "SQL")
 
-Rel(driver_service, redis, "Актуальное состояние водителей")
-Rel(pricing, redis, "Кэширует правила и коэффициенты")
-Rel(geography, redis, "Хранит краткоживущее географическое состояние")
+Rel(driver_service, driver_cache, "Хранит только состояние домена Driver")
+Rel(pricing, pricing_cache, "Кэширует только правила и коэффициенты Pricing")
+Rel(geography, geography_cache, "Хранит только краткоживущее состояние Geography")
 Rel(geography, search, "Индексирует и ищет водителей")
 
-Rel(booking, driver_service, "Запрашивает назначение и состояние водителя", "HTTP/REST")
+Rel(booking, geography, "Запрашивает поиск и ранжирование подходящих водителей", "HTTP/REST")
+Rel(booking, driver_service, "Проверяет доступность выбранного водителя", "HTTP/REST")
 Rel(booking, pricing, "Запрашивает рассчитанную цену", "HTTP/REST")
-Rel(booking, geography, "Запрашивает маршрут и подбор", "HTTP/REST")
 Rel(booking, fraud, "Запрашивает оценку риска", "HTTP/REST")
 Rel(booking, payments, "Инициирует финансовую операцию", "HTTP/REST")
 
@@ -125,17 +133,17 @@ Rel(notification, fcm, "Отправляет уведомления", "HTTPS")
 Rel(notification, apns, "Отправляет уведомления", "HTTPS")
 Rel(notification, huawei_push, "Отправляет уведомления", "HTTPS")
 
-Rel(booking, prometheus, "Метрики")
-Rel(driver_service, prometheus, "Метрики")
-Rel(pricing, prometheus, "Метрики")
-Rel(payments, prometheus, "Метрики")
-Rel(notification, prometheus, "Метрики")
-Rel(geography, prometheus, "Метрики")
-Rel(analytics, prometheus, "Метрики")
-Rel(fraud, prometheus, "Метрики")
-Rel(monolith, prometheus, "Метрики переходного периода")
-Rel(prometheus, grafana, "Данные для панелей", "PromQL")
-Rel(prometheus, alertmanager, "Правила оповещений")
+Rel(prometheus, booking, "Собирает метрики", "HTTP")
+Rel(prometheus, driver_service, "Собирает метрики", "HTTP")
+Rel(prometheus, pricing, "Собирает метрики", "HTTP")
+Rel(prometheus, payments, "Собирает метрики", "HTTP")
+Rel(prometheus, notification, "Собирает метрики", "HTTP")
+Rel(prometheus, geography, "Собирает метрики", "HTTP")
+Rel(prometheus, analytics, "Собирает метрики", "HTTP")
+Rel(prometheus, fraud, "Собирает метрики", "HTTP")
+Rel(prometheus, monolith, "Собирает метрики переходного периода", "HTTP")
+Rel(grafana, prometheus, "Запрашивает метрики", "PromQL")
+Rel(prometheus, alertmanager, "Передаёт сработавшие правила")
 
 Rel(booking, loki, "Журналы")
 Rel(driver_service, loki, "Журналы")
@@ -156,6 +164,19 @@ Rel(jenkins, notification, "Независимое развёртывание")
 Rel(jenkins, geography, "Независимое развёртывание")
 Rel(jenkins, analytics, "Независимое развёртывание")
 Rel(jenkins, fraud, "Независимое развёртывание")
+
+note right of monolith
+  Временный компонент переходного периода.
+  Его область ответственности уменьшается
+  после каждого этапа декомпозиции.
+end note
+
+note right of driver_cache
+  Redis может физически размещаться
+  в общем кластере, но области данных
+  доменов изолированы. Междоменное
+  чтение ключей запрещено.
+end note
 
 SHOW_LEGEND()
 @enduml
