@@ -12,7 +12,7 @@ Person(sre, "SRE-инженер", "Подтверждает региональн
 
 Deployment_Node(edge, "Глобальный пограничный контур", "Google Cloud", "Единая точка входа", $tags="task3") {
     Container(lb, "Глобальный балансировщик", "External Application Load Balancer", "Исключает нездоровые регионы из новых операций", $tags="task3")
-    Container(health, "Проверки состояния", "Health Checks", "Проверяют критический путь региона", $tags="task3")
+    Container(health, "Проверки состояния", "Проверки состояния", "Проверяют критический путь региона", $tags="task3")
     ContainerDb(owner_registry, "Реестр активного владельца сегмента", "Cloud Spanner", "active_region, epoch, состояние и аренда права записи", $tags="task3")
 }
 
