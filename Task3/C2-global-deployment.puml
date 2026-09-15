@@ -17,7 +17,7 @@ System_Boundary(gofuture, "GoFuture") {
     Container(driver_app, "Водительское приложение", "iOS / Android / Huawei", "Клиент водителя")
 
     Container(global_dns, "Глобальная DNS-зона", "Cloud DNS", "Единое публичное имя GoFuture", $tags="task3")
-    Container(waf, "Межсетевой экран веб-приложений", "Cloud Armor", "WAF, защита от DDoS и ограничение частоты запросов", $tags="task3")
+    Container(waf, "Политика защиты веб-приложений", "Cloud Armor", "WAF, защита от DDoS и ограничение частоты запросов", $tags="task3")
     Container(global_lb, "Глобальный внешний балансировщик приложений", "Google Cloud Load Balancing", "Направляет запрос в ближайший здоровый регион с доступной ёмкостью", $tags="task3")
 
     Boundary(logical_services, "Логические доменные сервисы — одинаковый набор развёртывается в каждом регионе") {
@@ -67,22 +67,27 @@ Rel(passenger, passenger_app, "Использует")
 Rel(driver, driver_app, "Использует")
 Rel(passenger_app, global_dns, "Разрешает имя GoFuture", "DNS", $tags="task3")
 Rel(driver_app, global_dns, "Разрешает имя GoFuture", "DNS", $tags="task3")
-Rel(global_dns, waf, "Публичный HTTPS-трафик", $tags="task3")
-Rel(waf, global_lb, "Пропускает разрешённый трафик", "HTTPS", $tags="task3")
+Rel(global_dns, global_lb, "Возвращает глобальный адрес", "DNS/HTTPS", $tags="task3")
+Rel(waf, global_lb, "Применяет политику защиты к входящему трафику", $tags="task3")
 
 Rel(global_lb, sg_runtime, "Ближайший здоровый регион", "HTTPS", $tags="task3")
 Rel(global_lb, jk_runtime, "Ближайший здоровый регион", "HTTPS", $tags="task3")
 Rel(global_lb, sp_runtime, "Ближайший здоровый регион", "HTTPS", $tags="task3")
 Rel(global_lb, sc_runtime, "Ближайший здоровый регион", "HTTPS", $tags="task3")
 
-Rel(vpc_fw, sg_runtime, "Фильтрует входящий трафик", $tags="task3")
-Rel(vpc_fw, jk_runtime, "Фильтрует входящий трафик", $tags="task3")
-Rel(vpc_fw, sp_runtime, "Фильтрует входящий трафик", $tags="task3")
-Rel(vpc_fw, sc_runtime, "Фильтрует входящий трафик", $tags="task3")
-Rel(net_policy, logical_services, "Ограничивает межсервисные соединения", $tags="task3")
-Rel(logical_services, secret_manager, "Получает секреты по сервисной учётной записи", $tags="task3")
-Rel(logical_services, kms, "Использует ключи шифрования", $tags="task3")
-Rel(logical_services, nat, "Исходящие соединения к внешним системам", $tags="task3")
+Rel(vpc_fw, sg_runtime, "Разрешает только трафик балансировщика и проверок состояния", $tags="task3")
+Rel(vpc_fw, jk_runtime, "Разрешает только трафик балансировщика и проверок состояния", $tags="task3")
+Rel(vpc_fw, sp_runtime, "Разрешает только трафик балансировщика и проверок состояния", $tags="task3")
+Rel(vpc_fw, sc_runtime, "Разрешает только трафик балансировщика и проверок состояния", $tags="task3")
+Rel(net_policy, booking, "Ограничивает разрешённые межсервисные соединения", $tags="task3")
+Rel(net_policy, payments, "Ограничивает разрешённые межсервисные соединения", $tags="task3")
+Rel(booking, secret_manager, "Получает секреты по сервисной учётной записи", $tags="task3")
+Rel(payments, secret_manager, "Получает секреты по сервисной учётной записи", $tags="task3")
+Rel(booking, kms, "Использует региональные ключи шифрования", $tags="task3")
+Rel(payments, kms, "Использует региональные ключи шифрования", $tags="task3")
+Rel(payments, nat, "Исходящие соединения", $tags="task3")
+Rel(geography, nat, "Исходящие соединения", $tags="task3")
+Rel(notification, nat, "Исходящие соединения", $tags="task3")
 Rel(nat, payment_gateways, "Платежи", "HTTPS", $tags="task3")
 Rel(nat, maps, "Карты и маршруты", "HTTPS", $tags="task3")
 Rel(nat, push, "Уведомления", "HTTPS", $tags="task3")
@@ -94,10 +99,10 @@ Rel(sc_runtime, db_replication, "Основные сегменты Santiago → 
 Rel(sg_runtime, kafka_mirror, "Критичные топики ↔ Jakarta", $tags="task3")
 Rel(sp_runtime, kafka_mirror, "Критичные топики ↔ Santiago", $tags="task3")
 
-Rel(prometheus, sg_runtime, "Собирает региональные метрики")
-Rel(prometheus, jk_runtime, "Собирает региональные метрики")
-Rel(prometheus, sp_runtime, "Собирает региональные метрики")
-Rel(prometheus, sc_runtime, "Собирает региональные метрики")
+Rel(prometheus, sg_runtime, "Собирает региональные метрики", $tags="task3")
+Rel(prometheus, jk_runtime, "Собирает региональные метрики", $tags="task3")
+Rel(prometheus, sp_runtime, "Собирает региональные метрики", $tags="task3")
+Rel(prometheus, sc_runtime, "Собирает региональные метрики", $tags="task3")
 Rel(grafana, prometheus, "Запрашивает метрики", "PromQL")
 Rel(prometheus, alertmanager, "Передаёт сработавшие правила")
 Rel(sre, grafana, "Контролирует состояние")
@@ -105,7 +110,11 @@ Rel(sre, alertmanager, "Получает оповещения")
 
 note right of global_lb #FDECEC
   Красным выделены изменения Task3.
-  Глобальный балансировщик исключает регион,
+  Cloud Armor является политикой защиты,
+  связанной с глобальным балансировщиком,
+  а не отдельным сетевым переходом.
+
+  Балансировщик исключает регион,
   если критические проверки готовности не проходят.
 end note
 
