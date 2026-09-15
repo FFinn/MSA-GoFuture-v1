@@ -15,14 +15,14 @@ System_Boundary(gofuture, "GoFuture") {
     Container(api_gateway, "Шлюз программного интерфейса", "HTTP/REST", "Входная точка клиентских запросов")
 
     Boundary(domains, "Доменные сервисы") {
-        Container(booking, "Booking", "Django / Python", "Жизненный цикл поездки; оркестратор Saga")
-        Container(driver_service, "Driver", "Django / Python", "Профиль, доступность и резервирование водителя")
-        Container(geography, "Geography", "Django / Python", "Геопоиск, зоны, поиск кандидатов и перераспределение водителей")
-        Container(pricing, "Pricing", "Django / Python", "Тарифы и динамическое ценообразование")
-        Container(payments, "Payments", "Django / Python", "Авторизация, списания, возвраты и выплаты")
-        Container(fraud, "Fraud", "Django / Python", "Оценка риска поездки и платежа")
-        Container(notification, "Notification", "Django / Python", "Отправка уведомлений")
-        Container(analytics, "Analytics", "Python", "Построение аналитических проекций")
+        Container(booking, "Booking — сервис бронирования", "Django / Python", "Жизненный цикл поездки; оркестратор Saga")
+        Container(driver_service, "Driver — сервис водителей", "Django / Python", "Профиль, доступность и резервирование водителя")
+        Container(geography, "Geography — сервис географии", "Django / Python", "Геопоиск, зоны, поиск кандидатов и перераспределение водителей")
+        Container(pricing, "Pricing — сервис ценообразования", "Django / Python", "Тарифы и динамическое ценообразование")
+        Container(payments, "Payments — сервис платежей", "Django / Python", "Авторизация, списания, возвраты и выплаты")
+        Container(fraud, "Fraud — сервис защиты от мошенничества", "Django / Python", "Оценка риска поездки и платежа")
+        Container(notification, "Notification — сервис уведомлений", "Django / Python", "Отправка уведомлений")
+        Container(analytics, "Analytics — сервис аналитики", "Python", "Построение аналитических проекций")
 
         ContainerDb(booking_db, "Booking PostgreSQL", "PostgreSQL", "Заказы, поездки, состояние Saga, outbox и inbox Booking")
         ContainerDb(driver_db, "Driver PostgreSQL", "PostgreSQL", "Профили, доступность, резервирование, outbox и inbox Driver")
