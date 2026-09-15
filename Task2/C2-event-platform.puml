@@ -32,6 +32,11 @@ System_Boundary(gofuture, "GoFuture") {
         ContainerDb(fraud_db, "Fraud PostgreSQL", "PostgreSQL", "Правила, признаки, решения, outbox и inbox Fraud")
         ContainerDb(notification_db, "Notification PostgreSQL", "PostgreSQL", "Шаблоны, статусы доставки, outbox и inbox Notification")
         ContainerDb(clickhouse, "Аналитическое хранилище", "ClickHouse", "Долговременные факты и агрегаты")
+
+        ContainerDb(driver_cache, "Оперативное хранилище Driver", "Redis", "Только состояние и кэш домена Driver")
+        ContainerDb(pricing_cache, "Оперативное хранилище Pricing", "Redis", "Только кэш правил и коэффициентов Pricing")
+        ContainerDb(geography_cache, "Оперативное хранилище Geography", "Redis", "Только краткоживущее состояние Geography")
+        Container(search, "Геопоисковый индекс Geography", "Elasticsearch", "Поиск водителей и географических объектов")
     }
 
     System_Boundary(event_platform, "Событийная платформа") {
@@ -54,9 +59,10 @@ System_Boundary(gofuture, "GoFuture") {
     }
 }
 
-System_Ext(payment_gateways, "Локальные платёжные шлюзы", "Яндекс Пэй и региональные провайдеры")
+System_Ext(payment_gateways, "Платёжные шлюзы", "Яндекс Пэй и региональные поставщики")
+System_Ext(bank_api, "Банковские программные интерфейсы", "Выплаты водителям")
+System_Ext(maps, "Картографические сервисы", "Яндекс Карты и региональные поставщики")
 System_Ext(push_providers, "Поставщики мобильных уведомлений", "FCM / APNS / Huawei Push Kit")
-System_Ext(maps, "Картографические сервисы", "Яндекс Карты и локальные поставщики")
 
 Rel(passenger, passenger_app, "Использует")
 Rel(driver, driver_app, "Использует")
@@ -74,6 +80,11 @@ Rel(payments, payments_db, "Бизнес-данные + outbox/inbox", "SQL")
 Rel(fraud, fraud_db, "Бизнес-данные + outbox/inbox", "SQL")
 Rel(notification, notification_db, "Бизнес-данные + outbox/inbox", "SQL")
 Rel(analytics, clickhouse, "Записывает факты и агрегаты", "SQL")
+
+Rel(driver_service, driver_cache, "Хранит только состояние домена Driver")
+Rel(pricing, pricing_cache, "Кэширует только правила и коэффициенты Pricing")
+Rel(geography, geography_cache, "Хранит только краткоживущее состояние Geography")
+Rel(geography, search, "Индексирует и ищет водителей")
 
 Rel(connect, booking_db, "Читает outbox Booking", "CDC")
 Rel(connect, driver_db, "Читает outbox Driver", "CDC")
@@ -101,6 +112,7 @@ Rel(flink, flink_checkpoints, "Сохраняет контрольные точ�
 
 Rel(geography, maps, "Маршруты и геоданные", "HTTPS")
 Rel(payments, payment_gateways, "Авторизация, списание и возврат", "HTTPS")
+Rel(payments, bank_api, "Выплаты водителям", "HTTPS")
 Rel(notification, push_providers, "Доставка уведомлений", "HTTPS")
 
 Rel(kafka_exporter, kafka, "Читает технические метрики", "JMX / Kafka API")
