@@ -14,7 +14,7 @@ System_Boundary(global_edge, "Глобальный пограничный кон
     Container(dns, "Единое имя GoFuture", "Cloud DNS", "Разрешает имя глобального входа", $tags="task3")
     Container(waf, "Политика Cloud Armor", "WAF", "Применяется на глобальном балансировщике", $tags="task3")
     Container(lb, "Глобальный внешний балансировщик приложений", "Google Cloud Load Balancing", "Для новой операции выбирает ближайший здоровый регион", $tags="task3")
-    Container(health, "Региональные проверки состояния", "Health Checks", "Контролируют доступность критического пути региона", $tags="task3")
+    Container(health, "Региональные проверки состояния", "Проверки состояния", "Контролируют доступность критического пути региона", $tags="task3")
     ContainerDb(owner_registry, "Реестр активного владельца сегмента", "Cloud Spanner", "home_region → active_region, epoch и состояние", $tags="task3")
 }
 
