@@ -1,0 +1,119 @@
+@startuml GoFuture_C2_Global_Deployment_Task3
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Container.puml
+
+LAYOUT_LEFT_RIGHT()
+
+title GoFuture — C2 глобального развёртывания и защиты
+
+AddElementTag("task3", $bgColor="#FDECEC", $fontColor="#B71C1C", $borderColor="#D32F2F")
+AddRelTag("task3", $textColor="#D32F2F", $lineColor="#D32F2F")
+
+Person(passenger, "Пассажир", "Использует мобильное приложение")
+Person(driver, "Водитель", "Работает с поездками и передаёт координаты")
+Person(sre, "SRE-инженер", "Контролирует доступность и аварийные переключения")
+
+System_Boundary(gofuture, "GoFuture") {
+    Container(passenger_app, "Пассажирское приложение", "iOS / Android / Huawei", "Клиент пассажира")
+    Container(driver_app, "Водительское приложение", "iOS / Android / Huawei", "Клиент водителя")
+
+    Container(global_dns, "Глобальная DNS-зона", "Cloud DNS", "Единое публичное имя GoFuture", $tags="task3")
+    Container(waf, "Межсетевой экран веб-приложений", "Cloud Armor", "WAF, защита от DDoS и ограничение частоты запросов", $tags="task3")
+    Container(global_lb, "Глобальный внешний балансировщик приложений", "Google Cloud Load Balancing", "Направляет запрос в ближайший здоровый регион с доступной ёмкостью", $tags="task3")
+
+    Boundary(logical_services, "Логические доменные сервисы — одинаковый набор развёртывается в каждом регионе") {
+        Container(booking, "Booking", "Django / Python", "Жизненный цикл поездки и оркестратор Saga")
+        Container(driver_service, "Driver", "Django / Python", "Доступность и резервирование водителя")
+        Container(geography, "Geography", "Django / Python", "Геопоиск и подбор водителя")
+        Container(pricing, "Pricing", "Django / Python", "Тарифы и динамическая цена")
+        Container(payments, "Payments", "Django / Python", "Платежи, возвраты и выплаты")
+        Container(fraud, "Fraud", "Django / Python", "Оценка риска")
+        Container(notification, "Notification", "Django / Python", "Уведомления")
+        Container(analytics, "Analytics", "Python", "Аналитические проекции")
+    }
+
+    Boundary(regions, "Новые региональные контуры Task3") {
+        Container(sg_runtime, "Singapore", "GKE asia-southeast1", "Региональный кластер в нескольких зонах; локальные Kafka, Flink, Redis, Elasticsearch и PostgreSQL", $tags="task3")
+        Container(jk_runtime, "Jakarta", "GKE asia-southeast2", "Региональный кластер в нескольких зонах; локальные Kafka, Flink, Redis, Elasticsearch и PostgreSQL", $tags="task3")
+        Container(sp_runtime, "São Paulo", "GKE southamerica-east1", "Региональный кластер в нескольких зонах; локальные Kafka, Flink, Redis, Elasticsearch и PostgreSQL", $tags="task3")
+        Container(sc_runtime, "Santiago", "GKE southamerica-west1", "Региональный кластер в нескольких зонах; локальные Kafka, Flink, Redis, Elasticsearch и PostgreSQL", $tags="task3")
+    }
+
+    Boundary(security, "Региональная защита и управление секретами") {
+        Container(vpc_fw, "Сетевой межсетевой экран VPC", "VPC Firewall", "Разрешает вход к региональному контуру только от балансировщика и систем проверки состояния", $tags="task3")
+        Container(net_policy, "Сетевые политики контейнеров", "Kubernetes NetworkPolicy", "Ограничивают межсервисные соединения внутри GKE", $tags="task3")
+        Container(nat, "Контролируемый исходящий доступ", "Cloud NAT", "Единый контролируемый выход к внешним системам", $tags="task3")
+        Container(secret_manager, "Хранилище секретов", "Secret Manager", "Пароли, сертификаты и ключи внешних интеграций", $tags="task3")
+        Container(kms, "Управление ключами шифрования", "Cloud KMS", "Раздельные ключи по регионам и юрисдикциям", $tags="task3")
+    }
+
+    Boundary(replication, "Межрегиональная репликация") {
+        Container(db_replication, "Резервные PostgreSQL", "Cloud SQL cross-region replicas", "Асинхронные реплики между парными регионами; один владелец записи", $tags="task3")
+        Container(kafka_mirror, "Зеркалирование критичных событий", "Kafka MirrorMaker 2", "Выборочно зеркалирует доменные топики между парными регионами", $tags="task3")
+    }
+
+    Boundary(observability, "Наблюдаемость") {
+        Container(prometheus, "Prometheus", "Метрики", "Метрики сервисов, регионов и репликации")
+        Container(grafana, "Grafana", "Визуализация", "Панели глобального и регионального состояния")
+        Container(alertmanager, "Alertmanager", "Оповещения", "Оповещения SRE")
+        Container(loki, "Loki", "Журналы", "Централизованные журналы")
+    }
+}
+
+System_Ext(payment_gateways, "Локальные платёжные шлюзы", "Региональные поставщики платежей")
+System_Ext(maps, "Локальные картографические сервисы", "Региональные карты")
+System_Ext(push, "Поставщики мобильных уведомлений", "FCM / APNS / Huawei Push Kit")
+
+Rel(passenger, passenger_app, "Использует")
+Rel(driver, driver_app, "Использует")
+Rel(passenger_app, global_dns, "Разрешает имя GoFuture", "DNS", $tags="task3")
+Rel(driver_app, global_dns, "Разрешает имя GoFuture", "DNS", $tags="task3")
+Rel(global_dns, waf, "Публичный HTTPS-трафик", $tags="task3")
+Rel(waf, global_lb, "Пропускает разрешённый трафик", "HTTPS", $tags="task3")
+
+Rel(global_lb, sg_runtime, "Ближайший здоровый регион", "HTTPS", $tags="task3")
+Rel(global_lb, jk_runtime, "Ближайший здоровый регион", "HTTPS", $tags="task3")
+Rel(global_lb, sp_runtime, "Ближайший здоровый регион", "HTTPS", $tags="task3")
+Rel(global_lb, sc_runtime, "Ближайший здоровый регион", "HTTPS", $tags="task3")
+
+Rel(vpc_fw, sg_runtime, "Фильтрует входящий трафик", $tags="task3")
+Rel(vpc_fw, jk_runtime, "Фильтрует входящий трафик", $tags="task3")
+Rel(vpc_fw, sp_runtime, "Фильтрует входящий трафик", $tags="task3")
+Rel(vpc_fw, sc_runtime, "Фильтрует входящий трафик", $tags="task3")
+Rel(net_policy, logical_services, "Ограничивает межсервисные соединения", $tags="task3")
+Rel(logical_services, secret_manager, "Получает секреты по сервисной учётной записи", $tags="task3")
+Rel(logical_services, kms, "Использует ключи шифрования", $tags="task3")
+Rel(logical_services, nat, "Исходящие соединения к внешним системам", $tags="task3")
+Rel(nat, payment_gateways, "Платежи", "HTTPS", $tags="task3")
+Rel(nat, maps, "Карты и маршруты", "HTTPS", $tags="task3")
+Rel(nat, push, "Уведомления", "HTTPS", $tags="task3")
+
+Rel(sg_runtime, db_replication, "Основные сегменты Singapore → резерв Jakarta", $tags="task3")
+Rel(jk_runtime, db_replication, "Основные сегменты Jakarta → резерв Singapore", $tags="task3")
+Rel(sp_runtime, db_replication, "Основные сегменты São Paulo → резерв Santiago", $tags="task3")
+Rel(sc_runtime, db_replication, "Основные сегменты Santiago → резерв São Paulo", $tags="task3")
+Rel(sg_runtime, kafka_mirror, "Критичные топики ↔ Jakarta", $tags="task3")
+Rel(sp_runtime, kafka_mirror, "Критичные топики ↔ Santiago", $tags="task3")
+
+Rel(prometheus, sg_runtime, "Собирает региональные метрики")
+Rel(prometheus, jk_runtime, "Собирает региональные метрики")
+Rel(prometheus, sp_runtime, "Собирает региональные метрики")
+Rel(prometheus, sc_runtime, "Собирает региональные метрики")
+Rel(grafana, prometheus, "Запрашивает метрики", "PromQL")
+Rel(prometheus, alertmanager, "Передаёт сработавшие правила")
+Rel(sre, grafana, "Контролирует состояние")
+Rel(sre, alertmanager, "Получает оповещения")
+
+note right of global_lb #FDECEC
+  Красным выделены изменения Task3.
+  Глобальный балансировщик исключает регион,
+  если критические проверки готовности не проходят.
+end note
+
+note bottom of regions #FDECEC
+  Каждый регион содержит тот же набор доменных сервисов.
+  Региональные GKE-кластеры распределены по нескольким зонам.
+  Горизонтальное масштабирование выполняется независимо по регионам.
+end note
+
+SHOW_LEGEND()
+@enduml
