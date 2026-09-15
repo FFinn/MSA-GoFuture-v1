@@ -8,9 +8,9 @@
 
 | Задание | Основные артефакты |
 |---|---|
-| [Задание 1 — Проектируем домены](./Task1/README.md) | [ADR по декомпозиции](./Task1/ADR-001-domain-decomposition.md), [C2 целевой архитектуры](./Task1/C2-to-be.puml) |
-| [Задание 2 — Проектируем событийно-ориентированную архитектуру](./Task2/README.md) | [ADR событийной платформы](./Task2/ADR-002-event-driven-architecture.md), [C2 событийной платформы](./Task2/C2-event-platform.puml), [мониторинг](./Task2/monitoring.md) |
-| [Задание 3 — Обеспечиваем высокую нагрузку](./Task3/README.md) | [ADR глобального развёртывания](./Task3/ADR-003-global-deployment.md), [C2 глобального контура](./Task3/C2-global-deployment.puml), [репликация](./Task3/data-replication.puml), [геомаршрутизация](./Task3/geo-routing.puml), [аварийное переключение](./Task3/failover.puml) |
-| [Задание 4 — Проектируем систему мониторинга](./Task4/README.md) | [ADR многотенантной платформы](./Task4/ADR-004-multitenant-platform.md), [C2 многотенантной платформы](./Task4/C2-multitenant-platform.puml), [C3 подключения партнёра](./Task4/C3-partner-provisioning.puml), [роли и доступ](./Task4/roles-access.md) |
+| [Задание 1 — Проектируем домены](./Task1/README.md) | [ADR: нефункциональные требования, карта доменов, очерёдность выделения и план миграции](./Task1/ADR-001-domain-decomposition.md), [C2 целевой архитектуры](./Task1/C2-to-be.puml) |
+| [Задание 2 — Проектируем событийно-ориентированную архитектуру](./Task2/README.md) | [ADR событийной платформы](./Task2/ADR-002-event-driven-architecture.md), [C2 событийной платформы](./Task2/C2-event-platform.puml), [описание мониторинга и метрик](./Task2/monitoring.md) |
+| [Задание 3 — Обеспечиваем высокую нагрузку](./Task3/README.md) | [ADR глобального развёртывания](./Task3/ADR-003-global-deployment.md), [C2 глобального контура](./Task3/C2-global-deployment.puml), [схема репликации](./Task3/data-replication.puml), [геомаршрутизация](./Task3/geo-routing.puml), [C4 аварийного переключения](./Task3/failover.puml) |
+| [Задание 4 — Проектируем систему мониторинга](./Task4/README.md) | [ADR многотенантной платформы](./Task4/ADR-004-multitenant-platform.md), [C2 многотенантной платформы](./Task4/C2-multitenant-platform.puml), [C3 подключения партнёра](./Task4/C3-partner-provisioning.puml), [роли и уровни доступа](./Task4/roles-access.md) |
 
-Задание 5 будет добавлено после выполнения. Перед финальной сдачей этот файл будет дополнен ссылками на все пять заданий.
+Все обязательные артефакты по заданиям 1–4 размещены в соответствующих директориях. Перед отправкой на ревью остаётся визуально проверить отрисовку PlantUML-диаграмм и убедиться, что в пул-реквест вошли все файлы ветки `solution`.
