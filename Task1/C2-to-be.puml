@@ -27,7 +27,7 @@ System_Boundary(gofuture, "GoFuture") {
         Container(notification, "Notification — сервис уведомлений", "Django/Python + Celery", "Подготовка и доставка уведомлений")
         Container(geography, "Geography — сервис географии", "Django/Python", "Геопоиск, маршруты, зоны; находит и ранжирует подходящих водителей")
         Container(analytics, "Analytics — сервис аналитики", "Python", "Приём и подготовка аналитических данных")
-        Container(fraud, "Fraud — сервис защиты от мошенничества", "Django/Python", "Оценка риска поездок и платежных операций")
+        Container(fraud, "Fraud — сервис защиты от мошенничества", "Django/Python", "Оценка риска поездок и платёжных операций")
 
         ContainerDb(booking_db, "Booking PostgreSQL", "PostgreSQL", "Заказы, поездки и их состояния")
         ContainerDb(driver_db, "Driver PostgreSQL", "PostgreSQL", "Водители и их рабочее состояние")
@@ -48,7 +48,7 @@ System_Boundary(gofuture, "GoFuture") {
         Container(acl, "Слой обратной совместимости (ACL)", "Django/Python", "Адаптирует старые контракты и модель монолита к контрактам доменных сервисов")
         Container(monolith, "Монолит переходного периода", "Django/Python", "Оставшаяся бизнес-логика, которая ещё не перенесена")
         ContainerDb(monolith_db, "Унаследованная база", "PostgreSQL RDS", "Данные доменов, которые ещё не мигрировали")
-        ContainerQueue(rabbitmq, "Брокер сообщений переходного периода", "RabbitMQ", "Асинхронные задачи до внедрения событийной платформы в Task2")
+        ContainerQueue(rabbitmq, "Брокер сообщений переходного периода", "RabbitMQ", "Асинхронные задачи до внедрения целевой событийной платформы")
     }
 
     Boundary(observability, "Наблюдаемость") {
