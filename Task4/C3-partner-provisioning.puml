@@ -1,0 +1,87 @@
+@startuml GoFuture_C3_Partner_Provisioning_Task4
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Component.puml
+
+LAYOUT_LEFT_RIGHT()
+title GoFuture — C3 автоматического подключения нового партнёра
+
+Person(operator, "Оператор GoFuture", "Создаёт заявку и контролирует подключение партнёра")
+
+Container_Ext(tenant_registry, "Реестр партнёров", "Django / PostgreSQL", "tenant_id, состояние, регионы и юрисдикция")
+Container_Ext(iam, "Keycloak", "IAM / SSO", "realm, роли, клиенты и федерация OIDC/SAML")
+Container_Ext(automation, "Автоматизация инфраструктуры", "Jenkins + Terraform + Helm", "Пространство имён, квоты, сетевые политики и сервисные учётные записи")
+Container_Ext(data_platform, "Администрирование хранилищ", "PostgreSQL / Redis / Elasticsearch", "Создание изолированных хранилищ партнёра")
+Container_Ext(kafka_admin, "Администрирование Kafka", "Apache Kafka", "Топики, группы потребителей и ACL")
+Container_Ext(config_service, "Сервис конфигурации партнёров", "Django / PostgreSQL", "Флаги возможностей, интеграции и квоты")
+Container_Ext(secret_manager, "Хранилище секретов", "Secret Manager", "Секреты партнёра")
+Container_Ext(observability, "Контур наблюдаемости", "Prometheus / Grafana / Alertmanager", "Панели, правила и метрики партнёра")
+Container_Ext(audit, "Журнал аудита", "Защищённое хранилище", "История административных операций")
+
+Container_Boundary(provisioning_service, "Сервис управления партнёрами") {
+    Component(api, "API подключения партнёра", "Django REST", "Принимает заявку и возвращает текущее состояние")
+    Component(validator, "Проверка заявки", "Python", "Проверяет tenant_id, регионы, юрисдикцию и обязательные параметры")
+    Component(orchestrator, "Координатор процесса", "Python", "Выполняет шаги в заданном порядке и продолжает процесс после сбоя")
+    ComponentDb(state_store, "Хранилище состояния процесса", "PostgreSQL", "Состояние партнёра, шаги и устойчивые ключи tenant_id:step_name")
+    Component(iam_adapter, "Адаптер IAM", "Python", "Создаёт realm, роли, клиентов и федерацию SSO")
+    Component(infra_adapter, "Адаптер инфраструктуры", "Python", "Запускает Jenkins/Terraform/Helm")
+    Component(data_adapter, "Адаптер хранилищ", "Python", "Создаёт доменные базы и оперативные хранилища")
+    Component(kafka_adapter, "Адаптер Kafka", "Python", "Создаёт партнёрские топики, группы и ACL")
+    Component(config_adapter, "Адаптер конфигурации", "Python", "Создаёт начальную конфигурацию и ссылки на секреты")
+    Component(monitoring_adapter, "Адаптер наблюдаемости", "Python", "Создаёт панели, правила оповещений и фильтры")
+    Component(verifier, "Проверка готовности", "Python", "Проверяет вход, запись в базу, Kafka и получение метрик")
+}
+
+Rel(operator, api, "1. Создаёт заявку", "HTTPS")
+Rel(api, validator, "2. Передаёт данные заявки")
+Rel(validator, tenant_registry, "3. Проверяет уникальность tenant_id и допустимый регион")
+Rel(validator, orchestrator, "4. Запускает подтверждённую заявку")
+Rel(orchestrator, state_store, "Фиксирует состояние и результат каждого шага", "SQL")
+Rel(orchestrator, tenant_registry, "5. Создаёт партнёра со статусом PROVISIONING")
+
+Rel(orchestrator, iam_adapter, "6. Подготавливает идентификацию")
+Rel(iam_adapter, iam, "Создаёт realm, роли, клиентов и OIDC/SAML")
+
+Rel(orchestrator, infra_adapter, "7. Подготавливает вычислительный контур")
+Rel(infra_adapter, automation, "Создаёт пространство имён, квоты и сетевые политики")
+
+Rel(orchestrator, data_adapter, "8. Подготавливает хранилища")
+Rel(data_adapter, data_platform, "Создаёт отдельные доменные базы и оперативные хранилища")
+
+Rel(orchestrator, kafka_adapter, "9. Подготавливает событийный контур")
+Rel(kafka_adapter, kafka_admin, "Создаёт gofuture.<region>.<tenant_id>.* и ACL")
+
+Rel(orchestrator, config_adapter, "10. Создаёт конфигурацию")
+Rel(config_adapter, config_service, "Записывает функции, интеграции, квоты и брендирование")
+Rel(config_adapter, secret_manager, "Создаёт секреты и ссылки на них")
+
+Rel(orchestrator, monitoring_adapter, "11. Подготавливает наблюдаемость")
+Rel(monitoring_adapter, observability, "Создаёт панели и правила по tenant_id")
+
+Rel(orchestrator, verifier, "12. Запускает проверку готовности")
+Rel(verifier, iam, "Проверяет аутентификацию")
+Rel(verifier, data_platform, "Проверяет тестовую запись и чтение")
+Rel(verifier, kafka_admin, "Проверяет публикацию и получение события")
+Rel(verifier, observability, "Проверяет появление метрик")
+Rel(verifier, orchestrator, "13. Возвращает результат проверки")
+Rel(orchestrator, tenant_registry, "14. Переводит партнёра в ACTIVE только при успехе")
+Rel(orchestrator, audit, "Пишет ход административных операций")
+
+note right of state_store
+  Каждый шаг имеет ключ:
+  <tenant_id>:<step_name>
+
+  Повторный запуск сначала проверяет
+  сохранённый результат и существующий ресурс.
+  Дубликаты realm, баз и топиков не создаются.
+end note
+
+note bottom of verifier
+  Минимальная проверка перед ACTIVE:
+  - SSO работает;
+  - токен содержит корректный tenant_id и роли;
+  - сервис пишет только в базу партнёра;
+  - событие попадает только в топик партнёра;
+  - метрика появляется с правильным tenant_id.
+end note
+
+SHOW_LEGEND()
+@enduml
