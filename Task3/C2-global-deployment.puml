@@ -16,52 +16,83 @@ System_Boundary(gofuture, "GoFuture") {
     Container(passenger_app, "Пассажирское приложение", "iOS / Android / Huawei", "Клиент пассажира")
     Container(driver_app, "Водительское приложение", "iOS / Android / Huawei", "Клиент водителя")
 
-    Container(global_dns, "Глобальная DNS-зона", "Cloud DNS", "Единое публичное имя GoFuture", $tags="task3")
-    Container(waf, "Политика защиты веб-приложений", "Cloud Armor", "WAF, защита от DDoS и ограничение частоты запросов", $tags="task3")
-    Container(global_lb, "Глобальный внешний балансировщик приложений", "Google Cloud Load Balancing", "Направляет запрос в ближайший здоровый регион с доступной ёмкостью", $tags="task3")
-
-    Boundary(logical_services, "Логические доменные сервисы — одинаковый набор развёртывается в каждом регионе") {
-        Container(booking, "Booking", "Django / Python", "Жизненный цикл поездки и оркестратор Saga")
-        Container(driver_service, "Driver", "Django / Python", "Доступность и резервирование водителя")
-        Container(geography, "Geography", "Django / Python", "Геопоиск и подбор водителя")
-        Container(pricing, "Pricing", "Django / Python", "Тарифы и динамическая цена")
-        Container(payments, "Payments", "Django / Python", "Платежи, возвраты и выплаты")
-        Container(fraud, "Fraud", "Django / Python", "Оценка риска")
-        Container(notification, "Notification", "Django / Python", "Уведомления")
-        Container(analytics, "Analytics", "Python", "Аналитические проекции")
+    Boundary(global_edge, "Глобальный вход — изменения Task3") {
+        Container(global_dns, "Глобальная DNS-зона", "Cloud DNS", "Единое публичное имя GoFuture", $tags="task3")
+        Container(global_lb, "Глобальный внешний балансировщик приложений", "Google Cloud Load Balancing", "Выбирает ближайший здоровый регион с допустимым размещением данных", $tags="task3")
+        Container(waf, "Политика защиты веб-приложений", "Cloud Armor", "WAF, защита от DDoS и ограничение частоты запросов", $tags="task3")
     }
 
-    Boundary(regions, "Новые региональные контуры Task3") {
-        Container(sg_runtime, "Singapore", "GKE asia-southeast1", "Региональный кластер в нескольких зонах; локальные Kafka, Flink, Redis, Elasticsearch и PostgreSQL", $tags="task3")
-        Container(jk_runtime, "Jakarta", "GKE asia-southeast2", "Региональный кластер в нескольких зонах; локальные Kafka, Flink, Redis, Elasticsearch и PostgreSQL", $tags="task3")
-        Container(sp_runtime, "São Paulo", "GKE southamerica-east1", "Региональный кластер в нескольких зонах; локальные Kafka, Flink, Redis, Elasticsearch и PostgreSQL", $tags="task3")
-        Container(sc_runtime, "Santiago", "GKE southamerica-west1", "Региональный кластер в нескольких зонах; локальные Kafka, Flink, Redis, Elasticsearch и PostgreSQL", $tags="task3")
+    Boundary(regional_entry, "Региональные точки входа — изменения Task3") {
+        Container(sg_entry, "Сингапур", "региональный GKE, asia-southeast1", "Регион sg; кластер в нескольких зонах", $tags="task3")
+        Container(jkt_entry, "Джакарта", "региональный GKE, asia-southeast2", "Регион jkt; кластер в нескольких зонах", $tags="task3")
+        Container(sao_entry, "Сан-Паулу", "региональный GKE, southamerica-east1", "Регион sao; кластер в нескольких зонах", $tags="task3")
+        Container(scl_entry, "Сантьяго", "региональный GKE, southamerica-west1", "Регион scl; кластер в нескольких зонах", $tags="task3")
     }
 
-    Boundary(security, "Региональная защита и управление секретами") {
-        Container(vpc_fw, "Сетевой межсетевой экран VPC", "VPC Firewall", "Разрешает вход к региональному контуру только от балансировщика и систем проверки состояния", $tags="task3")
+    Container(api_gateway, "Шлюз программного интерфейса", "HTTP/REST", "Региональная входная точка клиентских запросов; логически тот же компонент, что в Task1 и Task2")
+
+    Boundary(domains, "Доменные сервисы — сохраняются из Task1 и Task2") {
+        Container(booking, "Booking — сервис бронирования", "Django / Python", "Жизненный цикл поездки; оркестратор Saga")
+        Container(driver_service, "Driver — сервис водителей", "Django / Python", "Профиль, доступность и резервирование водителя")
+        Container(geography, "Geography — сервис географии", "Django / Python", "Геопоиск, зоны, поиск кандидатов и перераспределение водителей")
+        Container(pricing, "Pricing — сервис ценообразования", "Django / Python", "Тарифы и динамическое ценообразование")
+        Container(payments, "Payments — сервис платежей", "Django / Python", "Авторизация, списания, возвраты и выплаты")
+        Container(fraud, "Fraud — сервис защиты от мошенничества", "Django / Python", "Оценка риска поездки и платежа")
+        Container(notification, "Notification — сервис уведомлений", "Django / Python", "Отправка уведомлений")
+        Container(analytics, "Analytics — сервис аналитики", "Python", "Построение аналитических проекций")
+
+        ContainerDb(booking_db, "Booking PostgreSQL", "PostgreSQL", "Отдельная база домена Booking; бизнес-данные, outbox и inbox")
+        ContainerDb(driver_db, "Driver PostgreSQL", "PostgreSQL", "Отдельная база домена Driver; бизнес-данные, outbox и inbox")
+        ContainerDb(geography_db, "Geography PostgreSQL", "PostgreSQL", "Отдельная база домена Geography; бизнес-данные, outbox и inbox")
+        ContainerDb(pricing_db, "Pricing PostgreSQL", "PostgreSQL", "Отдельная база домена Pricing; бизнес-данные, outbox и inbox")
+        ContainerDb(payments_db, "Payments PostgreSQL", "PostgreSQL", "Отдельная база домена Payments; бизнес-данные, outbox и inbox")
+        ContainerDb(fraud_db, "Fraud PostgreSQL", "PostgreSQL", "Отдельная база домена Fraud; бизнес-данные, outbox и inbox")
+        ContainerDb(notification_db, "Notification PostgreSQL", "PostgreSQL", "Отдельная база домена Notification; бизнес-данные, outbox и inbox")
+        ContainerDb(clickhouse, "Аналитическое хранилище", "ClickHouse", "Долговременные факты и агрегаты")
+
+        ContainerDb(driver_cache, "Оперативное хранилище Driver", "Redis", "Только состояние и кэш домена Driver")
+        ContainerDb(pricing_cache, "Оперативное хранилище Pricing", "Redis", "Только кэш правил и коэффициентов Pricing")
+        ContainerDb(geography_cache, "Оперативное хранилище Geography", "Redis", "Только краткоживущее состояние Geography")
+        Container(search, "Геопоисковый индекс Geography", "Elasticsearch", "Поиск водителей и географических объектов")
+    }
+
+    Boundary(event_platform, "Событийная платформа — сохраняется из Task2") {
+        ContainerQueue(kafka, "Apache Kafka", "Распределённый журнал событий", "Отдельный набор топиков для каждого внутреннего региона: sg, jkt, sao, scl")
+        Container(schema_registry, "Реестр схем", "Schema Registry", "Версии и проверка совместимости схем событий")
+        Container(connect, "Kafka Connect + Debezium", "Захват изменений данных", "Читает outbox доменных PostgreSQL и публикует события и команды в Kafka")
+        Container(flink, "Apache Flink", "Потоковая обработка", "Спрос и предложение, сигналы для цены, перераспределения водителей и Fraud")
+        ContainerDb(flink_checkpoints, "Контрольные точки Flink", "Объектное хранилище", "Состояние потоковых заданий для восстановления")
+    }
+
+    Boundary(security, "Региональная защита — изменения Task3") {
+        Container(vpc_fw, "Сетевой межсетевой экран VPC", "VPC Firewall", "Разрешает вход в регион только от глобального балансировщика и систем проверки состояния", $tags="task3")
         Container(net_policy, "Сетевые политики контейнеров", "Kubernetes NetworkPolicy", "Ограничивают межсервисные соединения внутри GKE", $tags="task3")
         Container(nat, "Контролируемый исходящий доступ", "Cloud NAT", "Единый контролируемый выход к внешним системам", $tags="task3")
         Container(secret_manager, "Хранилище секретов", "Secret Manager", "Пароли, сертификаты и ключи внешних интеграций", $tags="task3")
         Container(kms, "Управление ключами шифрования", "Cloud KMS", "Раздельные ключи по регионам и юрисдикциям", $tags="task3")
     }
 
-    Boundary(replication, "Межрегиональная репликация") {
-        Container(db_replication, "Резервные PostgreSQL", "Cloud SQL cross-region replicas", "Асинхронные реплики между парными регионами; один владелец записи", $tags="task3")
-        Container(kafka_mirror, "Зеркалирование критичных событий", "Kafka MirrorMaker 2", "Выборочно зеркалирует доменные топики между парными регионами", $tags="task3")
+    Boundary(replication, "Межрегиональная репликация — изменения Task3") {
+        Container(db_replication, "Резервные доменные PostgreSQL", "Cloud SQL cross-region replicas", "Отдельная межрегиональная реплика для каждой доменной базы; один владелец записи", $tags="task3")
+        Container(kafka_mirror, "Зеркалирование критичных событий", "Kafka MirrorMaker 2", "Выборочно зеркалирует критичные доменные топики между парными регионами", $tags="task3")
     }
 
-    Boundary(observability, "Наблюдаемость") {
-        Container(prometheus, "Prometheus", "Метрики", "Метрики сервисов, регионов и репликации")
+    Boundary(observability, "Наблюдаемость — сохраняется из Task2") {
+        Container(prometheus, "Prometheus", "Метрики", "Метрики сервисов, Kafka, Flink, баз и репликации")
         Container(grafana, "Grafana", "Визуализация", "Панели глобального и регионального состояния")
-        Container(alertmanager, "Alertmanager", "Оповещения", "Оповещения SRE")
-        Container(loki, "Loki", "Журналы", "Централизованные журналы")
+        Container(alertmanager, "Alertmanager", "Оповещения", "Маршрутизация критических оповещений")
+        Container(loki, "Loki", "Журналы", "Централизованные журналы сервисов и платформы")
+        Container(otel, "OpenTelemetry Collector", "Трассировка", "Собирает распределённые трассы")
+        Container(jaeger, "Jaeger", "Трассировка", "Хранение и просмотр трасс по trace_id / saga_id")
+        Container(kafka_exporter, "Kafka Exporter + JMX Exporter", "Экспорт метрик", "Метрики брокеров, партиций и групп потребителей")
+        Container(postgres_exporter, "PostgreSQL Exporter", "Экспорт метрик", "Метрики отдельных доменных PostgreSQL и репликации")
     }
 }
 
-System_Ext(payment_gateways, "Локальные платёжные шлюзы", "Региональные поставщики платежей")
-System_Ext(maps, "Локальные картографические сервисы", "Региональные карты")
-System_Ext(push, "Поставщики мобильных уведомлений", "FCM / APNS / Huawei Push Kit")
+System_Ext(payment_gateways, "Платёжные шлюзы", "Яндекс Пэй и региональные поставщики")
+System_Ext(bank_api, "Банковские программные интерфейсы", "Выплаты водителям")
+System_Ext(maps, "Картографические сервисы", "Яндекс Карты и региональные поставщики")
+System_Ext(push_providers, "Поставщики мобильных уведомлений", "FCM / APNS / Huawei Push Kit")
 
 Rel(passenger, passenger_app, "Использует")
 Rel(driver, driver_app, "Использует")
@@ -69,16 +100,59 @@ Rel(passenger_app, global_dns, "Разрешает имя GoFuture", "DNS", $tag
 Rel(driver_app, global_dns, "Разрешает имя GoFuture", "DNS", $tags="task3")
 Rel(global_dns, global_lb, "Возвращает глобальный адрес", "DNS/HTTPS", $tags="task3")
 Rel(waf, global_lb, "Применяет политику защиты к входящему трафику", $tags="task3")
+Rel(global_lb, sg_entry, "Ближайший здоровый допустимый регион", "HTTPS", $tags="task3")
+Rel(global_lb, jkt_entry, "Ближайший здоровый допустимый регион", "HTTPS", $tags="task3")
+Rel(global_lb, sao_entry, "Ближайший здоровый допустимый регион", "HTTPS", $tags="task3")
+Rel(global_lb, scl_entry, "Ближайший здоровый допустимый регион", "HTTPS", $tags="task3")
+Rel(sg_entry, api_gateway, "Передаёт запрос региональному шлюзу", "HTTPS/REST", $tags="task3")
+Rel(jkt_entry, api_gateway, "Передаёт запрос региональному шлюзу", "HTTPS/REST", $tags="task3")
+Rel(sao_entry, api_gateway, "Передаёт запрос региональному шлюзу", "HTTPS/REST", $tags="task3")
+Rel(scl_entry, api_gateway, "Передаёт запрос региональному шлюзу", "HTTPS/REST", $tags="task3")
 
-Rel(global_lb, sg_runtime, "Ближайший здоровый регион", "HTTPS", $tags="task3")
-Rel(global_lb, jk_runtime, "Ближайший здоровый регион", "HTTPS", $tags="task3")
-Rel(global_lb, sp_runtime, "Ближайший здоровый регион", "HTTPS", $tags="task3")
-Rel(global_lb, sc_runtime, "Ближайший здоровый регион", "HTTPS", $tags="task3")
+Rel(api_gateway, booking, "Команды поездки", "HTTP/REST")
+Rel(api_gateway, driver_service, "Состояние водителя", "HTTP/REST")
+Rel(api_gateway, geography, "Обновление местоположения", "HTTP/REST")
 
-Rel(vpc_fw, sg_runtime, "Разрешает только трафик балансировщика и проверок состояния", $tags="task3")
-Rel(vpc_fw, jk_runtime, "Разрешает только трафик балансировщика и проверок состояния", $tags="task3")
-Rel(vpc_fw, sp_runtime, "Разрешает только трафик балансировщика и проверок состояния", $tags="task3")
-Rel(vpc_fw, sc_runtime, "Разрешает только трафик балансировщика и проверок состояния", $tags="task3")
+Rel(booking, booking_db, "Бизнес-данные + состояние Saga + outbox/inbox", "SQL")
+Rel(driver_service, driver_db, "Бизнес-данные + outbox/inbox", "SQL")
+Rel(geography, geography_db, "Бизнес-данные + outbox/inbox", "SQL")
+Rel(pricing, pricing_db, "Бизнес-данные + outbox/inbox", "SQL")
+Rel(payments, payments_db, "Бизнес-данные + outbox/inbox", "SQL")
+Rel(fraud, fraud_db, "Бизнес-данные + outbox/inbox", "SQL")
+Rel(notification, notification_db, "Бизнес-данные + outbox/inbox", "SQL")
+Rel(analytics, clickhouse, "Записывает факты и агрегаты", "SQL")
+Rel(driver_service, driver_cache, "Хранит только состояние домена Driver")
+Rel(pricing, pricing_cache, "Кэширует только правила и коэффициенты Pricing")
+Rel(geography, geography_cache, "Хранит только краткоживущее состояние Geography")
+Rel(geography, search, "Индексирует и ищет водителей")
+
+Rel(connect, booking_db, "Читает outbox Booking", "CDC")
+Rel(connect, driver_db, "Читает outbox Driver", "CDC")
+Rel(connect, geography_db, "Читает outbox Geography", "CDC")
+Rel(connect, pricing_db, "Читает outbox Pricing", "CDC")
+Rel(connect, payments_db, "Читает outbox Payments", "CDC")
+Rel(connect, fraud_db, "Читает outbox Fraud", "CDC")
+Rel(connect, notification_db, "Читает outbox Notification", "CDC")
+Rel(connect, schema_registry, "Использует схемы при публикации")
+Rel(connect, kafka, "Публикует доменные события и команды")
+Rel(flink, schema_registry, "Использует версии схем потоков")
+Rel(kafka, flink, "Доменные события для потоковых вычислений")
+Rel(flink, kafka, "Сигналы спроса, перераспределения и Fraud")
+Rel(flink, flink_checkpoints, "Сохраняет контрольные точки")
+
+Rel(kafka, booking, "Результаты шагов Saga и доменные события")
+Rel(kafka, driver_service, "Команды резервирования и освобождения водителя")
+Rel(kafka, geography, "Команды поиска водителя и зональные сигналы")
+Rel(kafka, pricing, "Команды расчёта и сигналы спроса/предложения")
+Rel(kafka, payments, "Команды авторизации/списания и события поездок")
+Rel(kafka, fraud, "Команды проверки и потоковые признаки")
+Rel(kafka, notification, "События, требующие уведомления")
+Rel(kafka, analytics, "Необходимые доменные события")
+
+Rel(vpc_fw, sg_entry, "Разрешает только трафик балансировщика и проверок состояния", $tags="task3")
+Rel(vpc_fw, jkt_entry, "Разрешает только трафик балансировщика и проверок состояния", $tags="task3")
+Rel(vpc_fw, sao_entry, "Разрешает только трафик балансировщика и проверок состояния", $tags="task3")
+Rel(vpc_fw, scl_entry, "Разрешает только трафик балансировщика и проверок состояния", $tags="task3")
 Rel(net_policy, booking, "Ограничивает разрешённые межсервисные соединения", $tags="task3")
 Rel(net_policy, payments, "Ограничивает разрешённые межсервисные соединения", $tags="task3")
 Rel(booking, secret_manager, "Получает секреты по сервисной учётной записи", $tags="task3")
@@ -89,39 +163,76 @@ Rel(payments, nat, "Исходящие соединения", $tags="task3")
 Rel(geography, nat, "Исходящие соединения", $tags="task3")
 Rel(notification, nat, "Исходящие соединения", $tags="task3")
 Rel(nat, payment_gateways, "Платежи", "HTTPS", $tags="task3")
+Rel(nat, bank_api, "Выплаты водителям", "HTTPS", $tags="task3")
 Rel(nat, maps, "Карты и маршруты", "HTTPS", $tags="task3")
-Rel(nat, push, "Уведомления", "HTTPS", $tags="task3")
+Rel(nat, push_providers, "Уведомления", "HTTPS", $tags="task3")
 
-Rel(sg_runtime, db_replication, "Основные сегменты Singapore → резерв Jakarta", $tags="task3")
-Rel(jk_runtime, db_replication, "Основные сегменты Jakarta → резерв Singapore", $tags="task3")
-Rel(sp_runtime, db_replication, "Основные сегменты São Paulo → резерв Santiago", $tags="task3")
-Rel(sc_runtime, db_replication, "Основные сегменты Santiago → резерв São Paulo", $tags="task3")
-Rel(sg_runtime, kafka_mirror, "Критичные топики ↔ Jakarta", $tags="task3")
-Rel(sp_runtime, kafka_mirror, "Критичные топики ↔ Santiago", $tags="task3")
+Rel(booking_db, db_replication, "Реплицируется в парный регион", $tags="task3")
+Rel(driver_db, db_replication, "Реплицируется в парный регион", $tags="task3")
+Rel(geography_db, db_replication, "Реплицируется в парный регион", $tags="task3")
+Rel(pricing_db, db_replication, "Реплицируется в парный регион", $tags="task3")
+Rel(payments_db, db_replication, "Реплицируется в парный регион", $tags="task3")
+Rel(fraud_db, db_replication, "Реплицируется в парный регион", $tags="task3")
+Rel(notification_db, db_replication, "Реплицируется в парный регион", $tags="task3")
+Rel(kafka, kafka_mirror, "Критичные топики зеркалируются в парный регион", $tags="task3")
 
-Rel(prometheus, sg_runtime, "Собирает региональные метрики", $tags="task3")
-Rel(prometheus, jk_runtime, "Собирает региональные метрики", $tags="task3")
-Rel(prometheus, sp_runtime, "Собирает региональные метрики", $tags="task3")
-Rel(prometheus, sc_runtime, "Собирает региональные метрики", $tags="task3")
+Rel(kafka_exporter, kafka, "Читает технические метрики", "JMX / Kafka API")
+Rel(postgres_exporter, booking_db, "Читает метрики")
+Rel(postgres_exporter, driver_db, "Читает метрики")
+Rel(postgres_exporter, geography_db, "Читает метрики")
+Rel(postgres_exporter, pricing_db, "Читает метрики")
+Rel(postgres_exporter, payments_db, "Читает метрики")
+Rel(postgres_exporter, fraud_db, "Читает метрики")
+Rel(postgres_exporter, notification_db, "Читает метрики")
+Rel(prometheus, kafka_exporter, "Собирает метрики", "HTTP")
+Rel(prometheus, postgres_exporter, "Собирает метрики", "HTTP")
+Rel(prometheus, flink, "Собирает метрики через Flink Prometheus Reporter", "HTTP")
+Rel(prometheus, connect, "Собирает метрики Connect/Debezium", "HTTP/JMX")
+Rel(prometheus, booking, "Собирает RED- и Saga-метрики", "HTTP")
+Rel(prometheus, driver_service, "Собирает метрики", "HTTP")
+Rel(prometheus, geography, "Собирает метрики", "HTTP")
+Rel(prometheus, pricing, "Собирает метрики", "HTTP")
+Rel(prometheus, payments, "Собирает метрики", "HTTP")
+Rel(prometheus, fraud, "Собирает метрики", "HTTP")
+Rel(prometheus, notification, "Собирает метрики", "HTTP")
+Rel(prometheus, analytics, "Собирает метрики", "HTTP")
 Rel(grafana, prometheus, "Запрашивает метрики", "PromQL")
+Rel(grafana, loki, "Запрашивает журналы", "LogQL")
 Rel(prometheus, alertmanager, "Передаёт сработавшие правила")
+Rel(booking, otel, "Трассы Saga и межсервисных операций")
+Rel(pricing, otel, "Трассы")
+Rel(payments, otel, "Трассы")
+Rel(fraud, otel, "Трассы")
+Rel(otel, jaeger, "Передаёт трассы")
+Rel(grafana, jaeger, "Переход к распределённой трассе")
 Rel(sre, grafana, "Контролирует состояние")
 Rel(sre, alertmanager, "Получает оповещения")
 
 note right of global_lb #FDECEC
-  Красным выделены изменения Task3.
-  Cloud Armor является политикой защиты,
-  связанной с глобальным балансировщиком,
-  а не отдельным сетевым переходом.
-
-  Балансировщик исключает регион,
-  если критические проверки готовности не проходят.
+  Красным выделены только изменения Task3.
+  Cloud Armor — политика защиты глобального балансировщика.
+  Шлюз программного интерфейса из Task1 и Task2 сохранён
+  и развёртывается в каждом региональном контуре.
 end note
 
-note bottom of regions #FDECEC
-  Каждый регион содержит тот же набор доменных сервисов.
-  Региональные GKE-кластеры распределены по нескольким зонам.
-  Горизонтальное масштабирование выполняется независимо по регионам.
+note bottom of regional_entry #FDECEC
+  В каждом из четырёх регионов развёртывается одинаковый
+  набор чёрных компонентов: шлюз, доменные сервисы,
+  доменные базы, Kafka, Flink и средства наблюдаемости.
+end note
+
+note right of kafka
+  Внутренние стабильные идентификаторы регионов:
+  sg  = Сингапур
+  jkt = Джакарта
+  sao = Сан-Паулу
+  scl = Сантьяго
+
+  Имена топиков не зависят от кодов Google Cloud:
+  gofuture.sg.booking.events.v1
+  gofuture.jkt.booking.events.v1
+  gofuture.sao.booking.events.v1
+  gofuture.scl.booking.events.v1
 end note
 
 SHOW_LEGEND()
